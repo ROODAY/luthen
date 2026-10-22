@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+      - name: Install reference tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y age
+          pip install "shamir-mnemonic[cli]==0.3.0" pexpect
+      - name: Interop with reference shamir and age
+        run: python scripts/interop.py "bun src/cli/main.ts"
+      - name: Reproducible build guard
+        run: |
+          bash scripts/build.sh out/a
+          bash scripts/build.sh out/b
+          diff out/a/SHA256SUMS out/b/SHA256SUMS
