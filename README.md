@@ -61,7 +61,7 @@ Pre-release. The interface and file formats may change without notice.
 
 ## Licensing
 
-Luthen is source-available under the PolyForm Noncommercial License 1.0.0. It is not OSI open source. It is free for personal and noncommercial use. Commercial rights are reserved to the owner. See `LICENSE`.
+Luthen is source-available under the PolyForm Noncommercial License 1.0.0. It is not OSI open source. It is free for personal and noncommercial use. Commercial rights are reserved to the owner. See `LICENSE`. Release binaries also bundle third-party code under its own licenses (MIT, BSD-3-Clause); see `THIRD_PARTY_NOTICES.txt` attached to each release.
 
 ## Contributions
 
