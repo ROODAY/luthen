@@ -1,0 +1,21 @@
+{
+  "name": "luthen",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "bin": {
+    "luthen": "src/cli/main.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "age-encryption": "0.3.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.3",
+    "typescript": "7.0.2"
+  }
+}
