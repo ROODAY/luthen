@@ -6,7 +6,16 @@ const md = renderRecovery({ fileName: "vault.age", schemeSummary: "any 3 of 5 sh
 test("recovery card contains both recovery paths, spec links, and the scheme line", () => {
   for (const s of [
     "shamir recover",
-    "pip install shamir-mnemonic[cli]",
+    "pipx install 'shamir-mnemonic[cli]'",
+    "python3 -m venv luthen-recovery && luthen-recovery/bin/pip install 'shamir-mnemonic[cli]'",
+    "luthen-recovery/bin/shamir",
+    "tested with shamir-mnemonic 0.3.0",
+    "SLIP-39 passphrase is empty",
+    "numbered order",
+    "top to bottom",
+    "https://github.com/FiloSottile/age",
+    "alice/share.txt bob/share.txt",
+    "prompted for any missing ones",
     "age -d",
     "vault.age",
     "any 3 of 5 shares",
@@ -22,10 +31,27 @@ test("recovery card contains both recovery paths, spec links, and the scheme lin
 });
 
 test("recovery card sections appear in order", () => {
-  const order = ["offline", "any 3 of 5 shares", "luthen open", "shamir recover", "age -d", "slip39-wordlist.txt", "slip-0039.md", "Luthen format v1:"];
+  const order = [
+    "offline",
+    "any 3 of 5 shares",
+    "luthen open",
+    "pipx install",
+    "shamir recover",
+    "slip39-wordlist.txt",
+    "FiloSottile/age",
+    "age -d",
+    "slip-0039.md",
+    "Luthen format v1:",
+  ];
   const pos = order.map((s) => md.indexOf(s));
   expect(pos.every((p) => p >= 0)).toBe(true);
   expect([...pos].sort((a, b) => a - b)).toEqual(pos);
+});
+
+test("recovery card drops the old pip line, the passphrase-prompt claim, and the repeated share.txt example", () => {
+  expect(md).not.toContain("pip install shamir-mnemonic[cli]");
+  expect(md).not.toContain("passphrase prompt");
+  expect(md).not.toContain("share.txt share.txt");
 });
 
 test("wordlist render has 1024 lines", () => {

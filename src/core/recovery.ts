@@ -28,16 +28,21 @@ Set ID: ${info.identifier}. Only shares showing this same Set ID work together.
 ## Recovery with Luthen
 
 \`\`\`
-luthen open ${f} share.txt share.txt share.txt -o <output>
+luthen open ${f} alice/share.txt bob/share.txt … -o <output>
 \`\`\`
 
-Pass the \`share.txt\` file from each holder (rename or place them in separate paths), as many as the scheme above requires.
+Each holder's file is called \`share.txt\`, so keep them in separate folders. Pass as many share.txt files as you have; you'll be prompted for any missing ones.
 
 ## Recovery without Luthen
 
-1. Install the SLIP-39 tool: \`pip install shamir-mnemonic[cli]\`, then run \`shamir recover\`. Enter the words of each share. Press Enter at the passphrase prompt (the passphrase is empty). It prints the secret as hex.
-2. Decrypt with age: \`age -d -o <output> ${f}\`. When asked for the passphrase, paste the hex **exactly as printed**. If you derived the secret another way, use lowercase hex.
-3. If you only have word numbers, convert them to words with \`slip39-wordlist.txt\` (index 0 = first line).
+1. Install the SLIP-39 tool (tested with shamir-mnemonic 0.3.0):
+   \`pipx install 'shamir-mnemonic[cli]'\`
+   If you don't have pipx, use a virtual environment instead:
+   \`python3 -m venv luthen-recovery && luthen-recovery/bin/pip install 'shamir-mnemonic[cli]'\`
+   and then run \`luthen-recovery/bin/shamir\` wherever these steps say \`shamir\`.
+2. Run \`shamir recover\` and enter the words of each share. Enter words in their numbered order: the words in share.txt are numbered in columns, top to bottom (read down the first column, then the next). Alternatively, use the numbers block and convert each number to a word with \`slip39-wordlist.txt\` (number 0 = first line). The SLIP-39 passphrase is empty, which is the default, so just enter the shares. It prints the secret as hex.
+3. Install age if you don't have it: https://github.com/FiloSottile/age (packages for most OSes).
+4. Decrypt with age: \`age -d -o <output> ${f}\`. When asked for the passphrase, paste the hex **exactly as printed**. If you derived the secret another way, use lowercase hex.
 
 ## Specifications
 
