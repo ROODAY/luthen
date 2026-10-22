@@ -70,13 +70,13 @@ def run_case(label, luthen_cmd, seal_args, holders, root):
     input_path = os.path.join(case_dir, "input")
     with open(input_path, "wb") as f:
         f.write(os.urandom(64 * 1024))
+    bundles = os.path.join(case_dir, "luthen-input")
     proc = subprocess.run(
-        luthen_cmd + ["seal", "input"] + seal_args,
-        cwd=case_dir, capture_output=True, text=True,
+        luthen_cmd + ["seal", input_path, "--out", bundles] + seal_args,
+        capture_output=True, text=True,
     )
     if proc.returncode != 0:
         fail(f"[{label}] luthen seal exited {proc.returncode}:\n{proc.stdout}\n{proc.stderr}")
-    bundles = os.path.join(case_dir, "luthen-input")
     mnemonics = [read_words(os.path.join(bundles, h)) for h in holders]
     secret = shamir_recover(mnemonics)
     out_path = os.path.join(case_dir, "out")
