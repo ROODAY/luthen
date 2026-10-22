@@ -79,7 +79,8 @@ export function generateMnemonics(
   );
 }
 
-function sameSet(a: Share, b: Share): boolean {
+/** True when two shares belong to the same split (identifier, parameters and length agree). */
+export function sameSet(a: Share, b: Share): boolean {
   return (
     a.identifier === b.identifier &&
     a.extendable === b.extendable &&
@@ -94,6 +95,7 @@ function sameSet(a: Share, b: Share): boolean {
  * Recover the master secret from SLIP-39 mnemonics. Shares beyond what is needed are ignored:
  * only groups holding at least their member threshold count, and the first `threshold` shares
  * of each such group (and the first `groupThreshold` such groups) are used.
+ * Surplus shares beyond the thresholds are ignored; use vault.verify to check every share.
  */
 export function combineMnemonics(mnemonics: string[], passphrase = ""): Uint8Array {
   const shares = mnemonics.map(decodeMnemonic);
