@@ -6,6 +6,15 @@ Luthen is a command-line tool that encrypts a file with age and splits the encry
 
 Download the binary for your platform, plus `SHA256SUMS`, from the [Releases](https://github.com/ROODAY/luthen/releases) page. On Linux and macOS, make it executable with `chmod +x`.
 
+### Run from source
+
+Install the Bun version in `.bun-version`, then:
+
+```
+bun install
+bun src/cli/main.ts --help
+```
+
 ## Verify a release
 
 Check the checksum, then the build provenance attestation:
@@ -14,6 +23,8 @@ Check the checksum, then the build provenance attestation:
 sha256sum -c SHA256SUMS --ignore-missing
 gh attestation verify luthen-linux-x64 --repo ROODAY/luthen
 ```
+
+On macOS, check the checksum with `shasum -a 256 -c SHA256SUMS --ignore-missing`. On Windows (PowerShell), run `Get-FileHash <file> -Algorithm SHA256` and compare the hash with the matching line in `SHA256SUMS`.
 
 To rebuild it yourself, check out the release tag, install the Bun version in `.bun-version`, and run `bash scripts/build.sh dist`. The resulting `dist/SHA256SUMS` should match the published one.
 
@@ -38,6 +49,11 @@ luthen verify bundle/share-1/secrets.txt.age bundle/share-1/share.txt bundle/sha
 ```
 
 Recovery never requires Luthen: see `RECOVERY.md` in any bundle.
+
+## Security notes
+
+- Files Luthen writes (bundle files and `open` output) are created readable only by you (mode 0600, directories 0700). This has no effect on Windows.
+- Memory hygiene is best effort. JavaScript cannot guarantee that secrets are wiped from memory: the age passphrase is an immutable string that stays until garbage collected, and the runtime may keep copies. Byte buffers holding the secret and the plaintext are zeroed where practical.
 
 ## Status
 
