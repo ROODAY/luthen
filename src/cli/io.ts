@@ -16,18 +16,18 @@ import {
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 
-/** Print `question` to stderr and read one line from stdin (works when piped). */
-export async function prompt(question: string): Promise<string> {
+let lineReader: AsyncIterator<string> | undefined;
+
+/**
+ * Print `question` to stderr and read one line from stdin (works when piped).
+ * Resolves null at end of input, so callers can tell EOF from an empty line.
+ * One reader is shared across calls so piped lines are not lost between prompts.
+ */
+export async function prompt(question: string): Promise<string | null> {
   process.stderr.write(question);
-  const rl = createInterface({ input: process.stdin, terminal: false });
-  try {
-    return await new Promise<string>((resolve) => {
-      rl.once("line", (line) => resolve(line));
-      rl.once("close", () => resolve(""));
-    });
-  } finally {
-    rl.close();
-  }
+  lineReader ??= createInterface({ input: process.stdin, terminal: false })[Symbol.asyncIterator]();
+  const next = await lineReader.next();
+  return next.done ? null : next.value;
 }
 
 /** Read a file, or all of stdin when `pathOrDash` is "-". */

@@ -172,7 +172,7 @@ export async function sealCommand(argv: string[]): Promise<number> {
         "guarantee that old data is erased (wear leveling, snapshots, backups). For real protection, keep\n" +
         "sensitive files on an encrypted volume (for example BitLocker) from the start.\n",
     );
-    const confirmed = values.yes === true || (await prompt('Type "shred" to confirm: ')).trim() === "shred";
+    const confirmed = values.yes === true || (await prompt('Type "shred" to confirm: '))?.trim() === "shred";
     if (!confirmed) {
       process.stderr.write("not shredded.\n");
       console.log(`The input file ${input} was left untouched.`);
