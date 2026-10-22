@@ -211,3 +211,21 @@ test("validateScheme rejects threshold > shares, 0, >16", () => {
   expect(bad({ groupThreshold: 1, groups: [{ threshold: 1, count: 2 }] })).toBe("BAD_SCHEME");
   expect(bad(flat(3, 5))).toBe("none");
 });
+
+test("verify: a forged 1-of-1 group share makes subsets disagree -> INVALID_SHARE", async () => {
+  const sealed = await seal(plaintext, flat(1, 3), opts);
+  const all = sealed.shares.map((s) => s.mnemonic);
+  const share = decodeMnemonic(all[2]!);
+  const value = share.value.slice();
+  value[0]! ^= 1;
+  const forged = encodeMnemonic({ ...share, value });
+  let err: unknown;
+  try {
+    await verify(sealed.ciphertext, [all[0]!, all[1]!, forged]);
+  } catch (e) {
+    err = e;
+  }
+  expect(err).toBeInstanceOf(LuthenError);
+  expect((err as LuthenError).code).toBe("INVALID_SHARE");
+  expect((err as LuthenError).message).toMatch(/disagree/);
+});
