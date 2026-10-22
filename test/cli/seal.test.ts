@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -176,4 +176,24 @@ test("no leftover .partial dirs after success", async () => {
   const f = secretFile();
   await run(["seal", f, "--shares", "2", "--threshold", "2", "--out", "o"]);
   expect(readdirSync(dir).filter((n) => n.includes(".partial"))).toEqual([]);
+}, T);
+
+test("--out with a trailing slash succeeds and leaves no .partial dirs", async () => {
+  const f = secretFile();
+  const r = await run(["seal", f, "--shares", "2", "--threshold", "2", "--out", "o/"]);
+  expect(r.err).toBe("");
+  expect(r.code).toBe(0);
+  expect(readdirSync(join(dir, "o")).sort()).toEqual(["share-1", "share-2"]);
+  expect(readdirSync(join(dir, "o", "share-1")).sort()).toEqual(BUNDLE_FILES);
+  expect(readdirSync(dir).filter((n) => n.includes(".partial"))).toEqual([]);
+  expect(readdirSync(join(dir, "o")).filter((n) => n.includes(".partial"))).toEqual([]);
+}, T);
+
+test.skipIf(process.platform === "win32")("bundle files are 0600 and bundle dirs 0700", async () => {
+  const f = secretFile();
+  const r = await run(["seal", f, "--shares", "2", "--threshold", "2", "--out", "o"]);
+  expect(r.code).toBe(0);
+  expect(statSync(join(dir, "o")).mode & 0o777).toBe(0o700);
+  expect(statSync(join(dir, "o", "share-1")).mode & 0o777).toBe(0o700);
+  for (const name of BUNDLE_FILES) expect(statSync(join(dir, "o", "share-1", name)).mode & 0o777).toBe(0o600);
 }, T);

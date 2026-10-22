@@ -13,7 +13,7 @@ import {
   writeFileSync,
   writeSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 
 let lineReader: AsyncIterator<string> | undefined;
@@ -40,9 +40,9 @@ export async function readInput(pathOrDash: string): Promise<Uint8Array> {
   return new Uint8Array(readFileSync(pathOrDash));
 }
 
-/** Write a new file; fails if it already exists. */
+/** Write a new owner-only (0600) file; fails if it already exists. */
 export async function writeExclusive(path: string, data: Uint8Array | string): Promise<void> {
-  const fd = openSync(path, "wx");
+  const fd = openSync(path, "wx", 0o600);
   try {
     writeFileSync(fd, data);
     fsyncSync(fd);
@@ -77,18 +77,21 @@ export function pathExists(path: string): boolean {
 /**
  * Write `files` (subdirectory -> file name -> contents) under `outDir`. Refuses if `outDir` exists.
  * Everything is staged in a sibling `.partial-<hex>` directory and renamed into place at the end.
+ * Directories are created owner-only (0700), files 0600.
  */
 export async function writeBundleDir(
-  outDir: string,
+  outDirArg: string,
   files: Record<string, Record<string, Uint8Array | string>>,
 ): Promise<void> {
-  if (pathExists(outDir)) throw new Error(`${outDir} already exists`);
+  if (pathExists(outDirArg)) throw new Error(`${outDirArg} already exists`);
+  // resolve() drops trailing separators, so "out/" stages beside "out", not inside it.
+  const outDir = resolve(outDirArg);
   const staging = `${outDir}.partial-${randomBytes(6).toString("hex")}`;
   try {
     if (!pathExists(dirname(staging))) mkdirSync(dirname(staging), { recursive: true });
-    mkdirSync(staging);
+    mkdirSync(staging, { mode: 0o700 });
     for (const [sub, entries] of Object.entries(files)) {
-      mkdirSync(join(staging, sub));
+      mkdirSync(join(staging, sub), { mode: 0o700 });
       for (const [name, data] of Object.entries(entries)) {
         await writeExclusive(join(staging, sub, name), data);
       }

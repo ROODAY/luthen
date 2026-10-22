@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { decodeMnemonic, encodeMnemonic, mnemonicToIndices } from "../../src/core/slip39/mnemonic";
@@ -59,6 +59,12 @@ test("open with 1 file arg + 2 shares piped on stdin", async () => {
   expect(readFileSync(join(dir, "out.txt"), "utf8")).toBe(PLAINTEXT);
   expect(r.err).toContain("2 of 3 needed");
   expect(r.err).toContain("3 of 3 needed");
+}, T);
+
+test.skipIf(process.platform === "win32")("open -o writes the plaintext with mode 0600", async () => {
+  const r = await run(["open", age(), share(1), share(2), share(3), "-o", "out.txt"]);
+  expect(r.code).toBe(0);
+  expect(statSync(join(dir, "out.txt")).mode & 0o777).toBe(0o600);
 }, T);
 
 test("open -o - writes plaintext to stdout only", async () => {

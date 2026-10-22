@@ -128,6 +128,7 @@ export async function openCommand(argv: string[]): Promise<number> {
   const plaintext = await open(ciphertext, mnemonics);
   try {
     if (outPath === "-") {
+      // Zeroing right after relies on Bun copying the buffer into the pipe synchronously (verified with a 20 MB slow-pipe test).
       process.stdout.write(plaintext);
     } else {
       try {
