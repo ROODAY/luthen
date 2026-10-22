@@ -3,13 +3,15 @@ import { basename } from "node:path";
 import { LuthenError } from "../core/errors";
 import { normalizeShareInput } from "../core/sharefile";
 import { open, progress, verify, type Progress } from "../core/vault";
+import { unlinkSync } from "node:fs";
 import { pathExists, prompt, readInput, writeExclusive } from "./io";
 import { UsageError } from "./seal";
 
 export const OPEN_USAGE = `Usage:
   luthen open <file.age> [share.txt ...] [-o <path>|-]
 
-Shares not given as files are asked for, one per prompt (words, numbers, or a whole share.txt).
+Pass share.txt files as arguments. Any other shares are asked for at the prompt: type one share per
+line (words or numbers).
 -o - writes the plaintext to stdout; -o <path> refuses to overwrite an existing file.
 Without -o, asks for an output path (needs a terminal).
 `;
@@ -29,6 +31,12 @@ function progressLine(p: Progress): string {
   const done = p.groups.filter((g) => g.have >= g.threshold).length;
   const parts = p.groups.map((g) => `group ${g.index + 1}: ${g.have}/${g.threshold}${g.have >= g.threshold ? " ✓" : ""}`);
   return `${parts.join("  ")}  — groups ${done} of ${p.groupThreshold}`;
+}
+
+function rejectStdinPaths(paths: string[]): void {
+  if (paths.includes("-")) {
+    throw new UsageError("stdin is reserved for typing shares; pass the .age file and share files as paths");
+  }
 }
 
 function parse(argv: string[], withOutput: boolean): { output?: string; positionals: string[] } {
@@ -97,6 +105,7 @@ export async function openCommand(argv: string[]): Promise<number> {
   const { output, positionals } = parse(argv, true);
   if (positionals.length < 1) throw new UsageError("open needs the encrypted file (.age)");
   const [ageFile, ...shareFiles] = positionals as [string, ...string[]];
+  rejectStdinPaths(positionals);
   let outPath = output;
   if (outPath === undefined && !process.stdin.isTTY) {
     throw new UsageError("no output chosen: pass -o <path> (or -o - for stdout) when stdin is not a terminal");
@@ -127,7 +136,13 @@ export async function openCommand(argv: string[]): Promise<number> {
         if ((e as NodeJS.ErrnoException).code === "EEXIST") {
           throw new Error(`${outPath} already exists; refusing to overwrite it`);
         }
-        throw e;
+        let cleanup = "";
+        try {
+          unlinkSync(outPath);
+        } catch {
+          cleanup = `; could not remove the partial file ${outPath}`;
+        }
+        throw new Error(`writing ${outPath} failed: ${e instanceof Error ? e.message : String(e)}${cleanup || `; the partial file was removed`}`);
       }
       process.stderr.write(`Wrote ${outPath}\n`);
     }
@@ -141,6 +156,7 @@ export async function verifyCommand(argv: string[]): Promise<number> {
   const { positionals } = parse(argv, false);
   if (positionals.length < 1) throw new UsageError("verify needs the encrypted file (.age)");
   const [ageFile, ...shareFiles] = positionals as [string, ...string[]];
+  rejectStdinPaths(positionals);
 
   const ciphertext = await readInput(ageFile);
   const mnemonics = await loadShareFiles(shareFiles);

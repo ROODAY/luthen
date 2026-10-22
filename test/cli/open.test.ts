@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:te
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { decodeMnemonic, encodeMnemonic, mnemonicToIndices } from "../../src/core/slip39/mnemonic";
 import { normalizeShareInput } from "../../src/core/sharefile";
 
 const MAIN = resolve(import.meta.dir, "../../src/cli/main.ts");
@@ -135,4 +136,31 @@ test("verify a corrupted share.txt → exit 1", async () => {
   const r = await run(["verify", age(), join(dir, "bad.txt")]);
   expect(r.code).toBe(1);
   expect(r.err).toContain("error:");
+}, T);
+
+test("open/verify reject - as the .age file or a share file → exit 2", async () => {
+  const a = await run(["open", "-", share(1), "-o", "out.txt"]);
+  expect(a.code).toBe(2);
+  const b = await run(["open", age(), "-", "-o", "out.txt"]);
+  expect(b.code).toBe(2);
+  const c = await run(["verify", age(), "-"]);
+  expect(c.code).toBe(2);
+}, T);
+
+test("open: forged share with the right set id and valid checksum → exit 1, no output file", async () => {
+  const real = decodeMnemonic(shareText(3));
+  const value = real.value.slice();
+  value[0] = value[0]! ^ 0xff;
+  const forged = encodeMnemonic({ ...real, value });
+  const r = await run(["open", age(), share(1), share(2), "-o", "out.txt"], forged + "\n");
+  expect(r.code).toBe(1);
+  expect(r.err).toContain("error:");
+  expect(existsSync(join(dir, "out.txt"))).toBe(false);
+}, T);
+
+test("open: one share typed as 33 space-separated indices is accepted", async () => {
+  const idx = mnemonicToIndices(shareText(3)).join(" ");
+  const r = await run(["open", age(), share(1), share(2), "-o", "out.txt"], idx + "\n");
+  expect(r.code).toBe(0);
+  expect(readFileSync(join(dir, "out.txt"), "utf8")).toBe(PLAINTEXT);
 }, T);
