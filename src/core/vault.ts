@@ -46,23 +46,25 @@ function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 /**
- * Threshold-sized subsets chosen by rotation so that every given group and member appears
- * in at least one subset. Each subset takes `groupThreshold` of the groups and `threshold`
- * members from each. Requires groupThreshold <= groups.length and threshold <= members.length.
+ * Threshold-sized subsets such that every member of every given group appears in at least one.
+ * For each group and each member offset, one subset is built: that group's members starting at
+ * the offset, plus the next `groupThreshold - 1` groups (wrapping) at the same offset.
+ * Requires groupThreshold <= groups.length and threshold <= members.length per group.
  */
 export function rotationSubsets(groups: RotationGroup[], groupThreshold: number): Pick[][] {
   const k = groups.length;
-  const rounds = Math.max(k, ...groups.map((g) => g.members.length));
   const subsets: Pick[][] = [];
-  for (let r = 0; r < rounds; r++) {
-    const subset: Pick[] = [];
-    for (let j = 0; j < groupThreshold; j++) {
-      const g = groups[(r + j) % k]!;
-      for (let m = 0; m < g.threshold; m++) {
-        subset.push({ group: g.index, member: g.members[(r + m) % g.members.length]! });
+  for (let gi = 0; gi < k; gi++) {
+    for (let o = 0; o < groups[gi]!.members.length; o++) {
+      const subset: Pick[] = [];
+      for (let j = 0; j < groupThreshold; j++) {
+        const g = groups[(gi + j) % k]!;
+        for (let m = 0; m < g.threshold; m++) {
+          subset.push({ group: g.index, member: g.members[(o + m) % g.members.length]! });
+        }
       }
+      subsets.push(subset);
     }
-    subsets.push(subset);
   }
   return subsets;
 }
@@ -103,7 +105,9 @@ export async function seal(
     }));
     for (const subset of rotationSubsets(rot, scheme.groupThreshold)) {
       const recovered = combineMnemonics(subset.map((p) => mnemonics[p.group]![p.member]!));
-      if (!equalBytes(recovered, secret)) throw new Error("self-check failed");
+      const ok = equalBytes(recovered, secret);
+      recovered.fill(0);
+      if (!ok) throw new Error("self-check failed");
     }
     const d = new Decrypter();
     d.addPassphrase(toHex(secret));
@@ -194,7 +198,7 @@ export async function verify(ciphertext: Uint8Array, mnemonics: string[]): Promi
       } else {
         const same = equalBytes(reference, secret);
         secret.fill(0);
-        if (!same) throw new LuthenError("DECRYPT_FAILED", "The supplied shares do not all agree on the same secret");
+        if (!same) throw new LuthenError("INVALID_SHARE", "The supplied shares disagree: at least one share is wrong or corrupted");
       }
     }
     await ageDecrypt(ciphertext, reference!);

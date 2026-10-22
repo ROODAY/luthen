@@ -1,9 +1,18 @@
 import { expect, test } from "bun:test";
 import { Decrypter } from "age-encryption";
 import { LuthenError } from "../../src/core/errors";
-import { describePosition, flat, totalShares, validateScheme } from "../../src/core/scheme";
+import { describePosition, flat, totalShares, validateScheme, type Scheme } from "../../src/core/scheme";
 import { combineMnemonics } from "../../src/core/slip39/index";
-import { open, progress, rotationSubsets, seal, verify } from "../../src/core/vault";
+import { decodeMnemonic, encodeMnemonic } from "../../src/core/slip39/mnemonic";
+import { open, progress, rotationSubsets, seal, verify, type RotationGroup } from "../../src/core/vault";
+
+function flatGroups(s: Scheme): RotationGroup[] {
+  return s.groups.map((g, index) => ({
+    index,
+    threshold: g.threshold,
+    members: Array.from({ length: g.count }, (_, i) => i),
+  }));
+}
 
 const opts = { scryptWorkFactor: 10 };
 const plaintext = new TextEncoder().encode("the quick brown fox");
@@ -141,13 +150,38 @@ test("rotationSubsets covers every supplied share and each subset is threshold-s
   }
 });
 
-test("verify rejects a corrupted surplus share that combine would ignore", async () => {
+test("verify rejects a valid-checksum but wrong surplus share that open ignores", async () => {
   const sealed = await seal(plaintext, flat(3, 5), opts);
   const all = sealed.shares.map((s) => s.mnemonic);
-  // Swap the last word for another valid-looking word; checksum fails -> INVALID_SHARE.
-  const words = all[4]!.split(" ");
-  words[words.length - 1] = words[words.length - 1] === "academic" ? "acid" : "academic";
-  expect(await code(verify(sealed.ciphertext, [...all.slice(0, 4), words.join(" ")]))).toBe("INVALID_SHARE");
+  const share = decodeMnemonic(all[4]!);
+  const value = share.value.slice();
+  value[0]! ^= 1;
+  const forged = encodeMnemonic({ ...share, value });
+  const five = [...all.slice(0, 4), forged];
+  expect(await open(sealed.ciphertext, five)).toEqual(plaintext);
+  expect(await code(verify(sealed.ciphertext, five))).toBe("INVALID_SHARE");
+});
+
+test("rotationSubsets covers every member in tricky and typical schemes", () => {
+  const tricky = [
+    { index: 0, threshold: 2, members: [0, 1, 2, 3, 4] },
+    { index: 1, threshold: 1, members: [0] },
+    { index: 2, threshold: 1, members: [0] },
+  ];
+  const cases: [RotationGroup[], number][] = [
+    [tricky, 1],
+    [tricky, 2],
+    [tricky, 3],
+    [flatGroups(flat(3, 5)), 1],
+    [flatGroups(flat(1, 4)), 1],
+    [flatGroups({ groupThreshold: 2, groups: [{ threshold: 1, count: 1 }, { threshold: 3, count: 5 }] }), 2],
+    [flatGroups({ groupThreshold: 1, groups: [{ threshold: 2, count: 5 }, { threshold: 1, count: 1 }, { threshold: 1, count: 1 }] }), 1],
+    [flatGroups({ groupThreshold: 2, groups: [{ threshold: 2, count: 3 }, { threshold: 3, count: 5 }, { threshold: 1, count: 1 }] }), 2],
+  ];
+  for (const [groups, gt] of cases) {
+    const seen = new Set(rotationSubsets(groups, gt).flat().map((p) => `${p.group}:${p.member}`));
+    for (const g of groups) for (const m of g.members) expect(seen.has(`${g.index}:${m}`)).toBe(true);
+  }
 });
 
 test("describePosition flat and groups strings", () => {
