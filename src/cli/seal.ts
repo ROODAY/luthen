@@ -122,7 +122,13 @@ export async function sealCommand(argv: string[]): Promise<number> {
   }
 
   const name = values.name ?? (fromStdin ? "vault" : basename(input));
-  if (!NAME_RE.test(name)) throw new UsageError("--name may only use letters, digits, '.', '_' and '-'");
+  if (!NAME_RE.test(name)) {
+    throw new UsageError(
+      values.name === undefined
+        ? `input file name "${name}" can't be used as a bundle name; pass --name <name>`
+        : "--name may only use letters, digits, '.', '_' and '-'",
+    );
+  }
   const fileName = `${name}.age`;
   const outDir = values.out ?? `./luthen-${name}`;
 
@@ -155,7 +161,11 @@ export async function sealCommand(argv: string[]): Promise<number> {
   });
   await writeBundleDir(outDir, files);
 
-  let shredded = false;
+  console.log(`Sealed ${fileName} into ${outDir}`);
+  console.log(`Set ID: ${sealed.identifier}`);
+  console.log(`Scheme: ${schemeSummary}`);
+  console.log("Hand one share folder to each holder.");
+
   if (values.shred) {
     process.stderr.write(
       "warning: shredding overwrites the file once and then deletes it, but SSDs and flash storage do not\n" +
@@ -163,19 +173,21 @@ export async function sealCommand(argv: string[]): Promise<number> {
         "sensitive files on an encrypted volume (for example BitLocker) from the start.\n",
     );
     const confirmed = values.yes === true || (await prompt('Type "shred" to confirm: ')).trim() === "shred";
-    if (confirmed) {
-      await shred(input);
-      shredded = true;
-    } else {
+    if (!confirmed) {
       process.stderr.write("not shredded.\n");
+      console.log(`The input file ${input} was left untouched.`);
+      return 0;
     }
+    try {
+      await shred(input);
+    } catch (e) {
+      throw new Error(
+        `bundles written to ${outDir}, but shredding ${input} failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+    console.log(`The input file ${input} was shredded.`);
+  } else if (!fromStdin) {
+    console.log(`The input file ${input} was left untouched.`);
   }
-
-  console.log(`Sealed ${fileName} into ${outDir}`);
-  console.log(`Set ID: ${sealed.identifier}`);
-  console.log(`Scheme: ${schemeSummary}`);
-  console.log("Hand one share folder to each holder.");
-  if (shredded) console.log(`The input file ${input} was shredded.`);
-  else if (!fromStdin) console.log(`The input file ${input} was left untouched.`);
   return 0;
 }

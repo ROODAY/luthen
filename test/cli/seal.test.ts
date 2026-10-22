@@ -88,17 +88,26 @@ test("stdin input with --name vault", async () => {
   expect(existsSync(join(dir, "o2", "share-2", "vault.age"))).toBe(true);
 }, T);
 
-test("existing --out dir → exit 1, nothing read or written", async () => {
+test("existing --out dir → exit 1 before the input is read", async () => {
   const f = secretFile();
   await run(["seal", f, "--shares", "2", "--threshold", "2", "--out", "o"]);
   const before = readdirSync(dir).sort();
-  // stdin input would block/consume if read; "ignore" stdin gives empty read, so assert via message instead
-  const r = await run(["seal", "-", "--shares", "2", "--threshold", "2", "--out", "o"], "should not be read");
+  // A nonexistent input: if it were read first, the error would be ENOENT instead.
+  const r = await run(["seal", "no-such-input.bin", "--shares", "2", "--threshold", "2", "--out", "o"]);
   expect(r.code).toBe(1);
-  expect(r.err).toContain("error:");
   expect(r.err).toContain("already exists");
+  expect(r.err).not.toContain("ENOENT");
   expect(readdirSync(dir).sort()).toEqual(before);
 }, T);
+
+test("input name unusable as bundle name → exit 2 naming the real cause", async () => {
+  const f = join(dir, "My Passwords.kdbx");
+  writeFileSync(f, "x");
+  const r = await run(["seal", f, "--shares", "2", "--threshold", "2"]);
+  expect(r.code).toBe(2);
+  expect(r.err).toContain('input file name "My Passwords.kdbx"');
+  expect(r.err).toContain("--name");
+});
 
 test("--threshold 6 --shares 5 → exit 2 with message", async () => {
   const f = secretFile();

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import {
   closeSync,
   fsyncSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -41,7 +42,27 @@ export async function readInput(pathOrDash: string): Promise<Uint8Array> {
 
 /** Write a new file; fails if it already exists. */
 export async function writeExclusive(path: string, data: Uint8Array | string): Promise<void> {
-  writeFileSync(path, data, { flag: "wx" });
+  const fd = openSync(path, "wx");
+  try {
+    writeFileSync(fd, data);
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Flush a directory entry to disk. Not supported everywhere (e.g. Windows), so failures are ignored. */
+function fsyncDir(path: string): void {
+  try {
+    const fd = openSync(path, "r");
+    try {
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    // directory fsync is unsupported on some platforms
+  }
 }
 
 export function pathExists(path: string): boolean {
@@ -72,7 +93,10 @@ export async function writeBundleDir(
         await writeExclusive(join(staging, sub, name), data);
       }
     }
+    for (const sub of Object.keys(files)) fsyncDir(join(staging, sub));
+    fsyncDir(staging);
     renameSync(staging, outDir);
+    fsyncDir(dirname(outDir));
   } catch (e) {
     rmSync(staging, { recursive: true, force: true });
     throw e;
@@ -81,7 +105,9 @@ export async function writeBundleDir(
 
 /** Overwrite a file with random bytes, flush it to disk, then delete it. */
 export async function shred(path: string): Promise<void> {
-  const size = statSync(path).size;
+  const st = lstatSync(path);
+  if (!st.isFile()) throw new Error(`${path} is not a regular file (symlink, device or pipe); refusing to shred it`);
+  const size = st.size;
   const fd = openSync(path, "r+");
   try {
     const chunk = 1 << 20;
