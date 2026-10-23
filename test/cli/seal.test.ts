@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { CLI } from "./cli";
 
-const MAIN = resolve(import.meta.dir, "../../src/cli/main.ts");
 const T = 60_000;
 let dir: string;
 
@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 async function run(args: string[], stdin?: string) {
-  const p = Bun.spawn(["bun", MAIN, ...args], {
+  const p = Bun.spawn([...CLI, ...args], {
     cwd: dir,
     stdin: stdin === undefined ? "ignore" : new TextEncoder().encode(stdin),
     stdout: "pipe",

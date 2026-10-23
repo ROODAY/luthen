@@ -10,6 +10,7 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "build:web": "bun scripts/build-web.ts dist/luthen.html",
+    "build:js": "bun build src/cli/script.ts --target=node --format=esm --minify --banner \"#!/usr/bin/env node\" --outfile dist/luthen.mjs",
     "dev:web": "bun src/web/index.html"
   },
   "dependencies": {

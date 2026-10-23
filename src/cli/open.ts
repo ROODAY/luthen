@@ -123,8 +123,8 @@ export async function openCommand(argv: string[]): Promise<number> {
   const plaintext = await open(ciphertext, mnemonics);
   try {
     if (outPath === "-") {
-      // Zeroing right after relies on Bun copying the buffer into the pipe synchronously (verified with a 20 MB slow-pipe test).
-      process.stdout.write(plaintext);
+      // The callback fires once the stream is done with the buffer, so zeroing in `finally` is safe on Node and Bun.
+      await new Promise<void>((ok, fail) => process.stdout.write(plaintext, (e) => (e ? fail(e) : ok())));
     } else {
       try {
         await writeExclusive(outPath, plaintext);

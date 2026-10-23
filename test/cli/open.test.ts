@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { CLI } from "./cli";
 import { decodeMnemonic, encodeMnemonic, mnemonicToIndices } from "../../src/core/slip39/mnemonic";
 import { normalizeShareInput } from "../../src/core/sharefile";
 
-const MAIN = resolve(import.meta.dir, "../../src/cli/main.ts");
 const T = 60_000;
 const PLAINTEXT = "top secret";
 let fixture: string;
@@ -13,14 +13,15 @@ let other: string;
 let dir: string;
 
 async function runIn(cwd: string, args: string[], stdin?: string) {
-  const p = Bun.spawn(["bun", MAIN, ...args], {
+  const p = Bun.spawn([...CLI, ...args], {
     cwd,
     stdin: stdin === undefined ? "ignore" : new TextEncoder().encode(stdin),
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
-  return { out, err, code };
+  const [stdout, err, code] = await Promise.all([new Response(p.stdout).arrayBuffer(), new Response(p.stderr).text(), p.exited]);
+  const bytes = new Uint8Array(stdout);
+  return { out: new TextDecoder().decode(bytes), bytes, err, code };
 }
 const run = (args: string[], stdin?: string) => runIn(dir, args, stdin);
 
@@ -71,6 +72,28 @@ test("open -o - writes plaintext to stdout only", async () => {
   const r = await run(["open", age(), "-s", share(1), "-s", share(2), "-s", share(3), "-o", "-"]);
   expect(r.code).toBe(0);
   expect(r.out).toBe(PLAINTEXT);
+}, T);
+
+test("open -o - writes a large binary file byte-for-byte to a slow reader", async () => {
+  const input = new Uint8Array(4 * 1024 * 1024);
+  for (let i = 0; i < input.length; i += 65536) crypto.getRandomValues(input.subarray(i, i + 65536));
+  writeFileSync(join(dir, "big.bin"), input);
+  expect((await run(["seal", "big.bin", "--shares", "2", "--threshold", "2", "--out", "o"])).code).toBe(0);
+  const s = (n: number) => join(dir, "o", `share-${n}`, "share.txt");
+  // Read slowly so the pipe fills and the CLI's write is still pending when it would zero the buffer.
+  const p = Bun.spawn([...CLI, "open", join(dir, "o", "share-1", "big.bin.age"), "-s", s(1), "-s", s(2), "-o", "-"], {
+    cwd: dir,
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of p.stdout) {
+    chunks.push(chunk);
+    await Bun.sleep(2);
+  }
+  expect(await p.exited).toBe(0);
+  expect(Buffer.compare(Buffer.concat(chunks), input)).toBe(0);
 }, T);
 
 test("open -o existing → exit 1, file unchanged", async () => {
