@@ -27,7 +27,8 @@ export interface InputState {
 export const EMPTY_INPUTS: InputState = { shares: [], problems: [] };
 
 const AGE_MAGIC = new TextEncoder().encode("age-encryption.org/v1\n");
-const SKIPPED_IN_ZIP = new Set(["RECOVERY.md", "slip39-wordlist.txt"]);
+// Bundle files that are never shares; skipped silently whether loose or zipped (RECOVERY.md tells holders to drop in the whole folder).
+const BUNDLE_FURNITURE = new Set(["RECOVERY.md", "slip39-wordlist.txt"]);
 
 const basename = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
@@ -100,7 +101,7 @@ function classify(s: InputState, name: string, bytes: Uint8Array, depth: number,
     }
     return;
   }
-  if (inZip && SKIPPED_IN_ZIP.has(basename(name))) return;
+  if (BUNDLE_FURNITURE.has(basename(name))) return;
   addShare(s, decodeText(bytes), name, inZip ? "skip" : "generic");
 }
 

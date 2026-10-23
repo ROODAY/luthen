@@ -180,12 +180,15 @@ export function mountSeal(root: HTMLElement): void {
     const nameProblem = !name ? (file ? "Enter a bundle name." : undefined) : NAME_RE.test(name) ? undefined : NAME_MSG;
     say(nameMsg, nameProblem);
 
+    picker.disabled = busy;
+    drop.classList.toggle("disabled", busy);
     const ready = file && !busy && !("error" in parsed) && labels && name && !nameProblem;
     sealBtn.disabled = !ready;
     return ready ? { ...parsed, name, labels: labels! } : undefined;
   }
 
   function choose(f: File): void {
+    if (busy) return;
     file = f;
     fileInfo.textContent = `${f.name} · ${formatSize(f.size)}`;
     largeWarn.hidden = f.size <= LARGE;
@@ -230,12 +233,13 @@ export function mountSeal(root: HTMLElement): void {
   });
   drop.addEventListener("dragover", (e) => {
     e.preventDefault();
-    drop.classList.add("dragging");
+    if (!busy) drop.classList.add("dragging");
   });
   drop.addEventListener("dragleave", () => drop.classList.remove("dragging"));
   drop.addEventListener("drop", (e) => {
     e.preventDefault();
     drop.classList.remove("dragging");
+    if (busy) return;
     const dropped = e.dataTransfer?.files;
     if (dropped?.length !== 1) {
       fileInfo.textContent = "Drop exactly one file.";

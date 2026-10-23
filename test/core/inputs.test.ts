@@ -103,6 +103,16 @@ test("loose junk", () => {
   expect(s.problems).toEqual([{ name: "notes.txt", message: "not a Luthen share or encrypted file" }]);
 });
 
+test("loose holder folder files: bundle furniture is skipped silently", () => {
+  const toBytes = (c: Uint8Array | string) => (typeof c === "string" ? enc.encode(c) : c);
+  const files = Object.entries(one.alice!).map(([name, c]) => ({ name, bytes: toBytes(c) }));
+  expect(files.map((f) => f.name).sort()).toEqual(["RECOVERY.md", "secret.txt.age", "share.txt", "slip39-wordlist.txt"]);
+  const s = addFiles(EMPTY_INPUTS, files);
+  expect(s.ciphertext?.name).toBe("secret.txt.age");
+  expect(s.shares).toHaveLength(1);
+  expect(s.problems).toEqual([]);
+});
+
 test("typed share", () => {
   const mnemonic = addFiles(EMPTY_INPUTS, [{ name: "a.zip", bytes: holderZip(one, "alice") }]).shares[0]!.mnemonic;
   const s = addShareText(EMPTY_INPUTS, mnemonic, "typed");
