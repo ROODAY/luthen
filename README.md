@@ -24,7 +24,7 @@ sha256sum -c SHA256SUMS --ignore-missing
 gh attestation verify luthen-linux-x64 --repo ROODAY/luthen
 ```
 
-The same applies to `luthen.html`, the web app (`gh attestation verify luthen.html --repo ROODAY/luthen`).
+`luthen.html`, the [web app](#web-app), is listed in `SHA256SUMS` and attested too; see that section.
 
 On macOS, check the checksum with `shasum -a 256 -c SHA256SUMS --ignore-missing`. On Windows (PowerShell), run `Get-FileHash <file> -Algorithm SHA256` and compare the hash with the matching line in `SHA256SUMS`.
 
