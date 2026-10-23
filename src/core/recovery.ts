@@ -47,7 +47,7 @@ Open https://rooday.com/luthen in a browser. For the safest option, download \`l
    and then run \`luthen-recovery/bin/shamir\` wherever these steps say \`shamir\`.
 2. Run \`shamir recover\` and enter the words of each share. Enter words in their numbered order: the words in share.txt are numbered in columns, top to bottom (read down the first column, then the next). Alternatively, use the numbers block and convert each number to a word with \`slip39-wordlist.txt\` (number 0 = first line). The SLIP-39 passphrase is empty, which is the default, so just enter the shares. It prints the secret as hex.
 3. Install age if you don't have it: https://github.com/FiloSottile/age (packages for most OSes).
-4. Decrypt with age: \`age -d -o <output> ${f}\`. When asked for the passphrase, paste the hex **exactly as printed**. If you derived the secret another way, use lowercase hex.
+4. Decrypt with age: \`age -d -o ${outputName(f)} ${f}\`. This writes the decrypted file to \`${outputName(f)}\`; put a different name after \`-o\` if you want. When asked for the passphrase, paste the hex secret from step 2 **exactly as printed**. If you derived the secret another way, use lowercase hex.
 
 ## Specifications
 

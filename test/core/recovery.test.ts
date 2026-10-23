@@ -64,6 +64,13 @@ test("recovery card's luthen open example writes to the file name without .age",
   expect(card).toContain("luthen open secret.txt.age -s alice/share.txt -s bob/share.txt … -o secret.txt\n");
 });
 
+test("recovery card's age example writes to the file name without .age and says where the passphrase comes from", () => {
+  const card = renderRecovery({ fileName: "secret.txt.age", schemeSummary: "any 2 of 3 shares", identifier: 1, version: "1.0.0" });
+  expect(card).toContain("`age -d -o secret.txt secret.txt.age`. This writes the decrypted file to `secret.txt`");
+  expect(card).toContain("paste the hex secret from step 2");
+  expect(card).not.toContain("<output>");
+});
+
 test("wordlist render has 1024 lines", () => {
   const w = renderWordlist();
   expect(w.endsWith("\n")).toBe(true);
