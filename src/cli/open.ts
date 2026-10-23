@@ -23,14 +23,16 @@ Checks shares (and, once enough are given, that they unlock the file). Writes no
 With no share files, asks for one share.
 `;
 
+// Shares record thresholds but not how many shares exist, so this can say "need 2" but not "of 3".
 function progressLine(p: Progress): string {
+  const count = (have: number, need: number) => `have ${have}, need ${need}${have >= need ? " ✓" : ""}`;
   if (p.groups.length === 1 && p.groupThreshold === 1) {
     const g = p.groups[0]!;
-    return `${g.have} of ${g.threshold} needed`;
+    return `shares: ${count(g.have, g.threshold)}`;
   }
   const done = p.groups.filter((g) => g.have >= g.threshold).length;
-  const parts = p.groups.map((g) => `group ${g.index + 1}: ${g.have}/${g.threshold}${g.have >= g.threshold ? " ✓" : ""}`);
-  return `${parts.join("  ")}  — groups ${done} of ${p.groupThreshold}`;
+  const parts = p.groups.map((g) => `group ${g.index + 1} shares: ${count(g.have, g.threshold)}`);
+  return `${parts.join(" · ")} · complete groups: ${count(done, p.groupThreshold)}`;
 }
 
 function rejectStdinPaths(paths: string[]): void {

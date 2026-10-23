@@ -57,8 +57,8 @@ test("open with 1 file arg + 2 shares piped on stdin", async () => {
   const r = await run(["open", age(), share(1), "-o", "out.txt"], shareText(2) + "\n" + shareText(3) + "\n");
   expect(r.code).toBe(0);
   expect(readFileSync(join(dir, "out.txt"), "utf8")).toBe(PLAINTEXT);
-  expect(r.err).toContain("2 of 3 needed");
-  expect(r.err).toContain("3 of 3 needed");
+  expect(r.err).toContain("shares: have 2, need 3");
+  expect(r.err).toContain("shares: have 3, need 3 ✓");
 }, T);
 
 test.skipIf(process.platform === "win32")("open -o writes the plaintext with mode 0600", async () => {
@@ -101,7 +101,7 @@ test("open: share from another seal is rejected with set ids", async () => {
 test("open: EOF with 2 of 3 → exit 1 NOT_ENOUGH_SHARES", async () => {
   const r = await run(["open", age(), share(1), "-o", "out.txt"], shareText(2) + "\n");
   expect(r.code).toBe(1);
-  expect(r.err).toContain("2 of 3 needed");
+  expect(r.err).toContain("shares: have 2, need 3");
   expect(r.err).toMatch(/not enough shares/i);
   expect(existsSync(join(dir, "out.txt"))).toBe(false);
 }, T);
@@ -111,11 +111,11 @@ test("open with no -o and non-TTY stdin → exit 2", async () => {
   expect(r.code).toBe(2);
 }, T);
 
-test("verify one share.txt → exit 0, prints valid and 1 of 3", async () => {
+test("verify one share.txt → exit 0, prints valid and have 1, need 3", async () => {
   const r = await run(["verify", age(), share(1)]);
   expect(r.code).toBe(0);
   expect(r.out).toContain("1 share valid");
-  expect(r.out).toContain("1 of 3 needed");
+  expect(r.out).toContain("shares: have 1, need 3");
   expect(r.out).not.toContain("unlocks");
 }, T);
 
