@@ -9,8 +9,10 @@ function files(dir: string): string[] {
   });
 }
 
-test("src/core imports no node:, bun, or fs modules", () => {
-  const all = files("src/core");
-  expect(all.length).toBeGreaterThan(0);
-  for (const f of all) expect([f, /from ["'](node:|bun|fs)/.test(readFileSync(f, "utf8"))]).toEqual([f, false]);
-});
+for (const dir of ["src/core", "src/web"]) {
+  test(`${dir} imports no node:, bun, or fs modules`, () => {
+    const all = files(dir);
+    expect(all.length).toBeGreaterThan(0);
+    for (const f of all) expect([f, /from ["'](node:|bun|fs)/.test(readFileSync(f, "utf8"))]).toEqual([f, false]);
+  });
+}

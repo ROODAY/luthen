@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:web": "bun scripts/build-web.ts dist/luthen.html",
+    "dev:web": "bun src/web/index.html"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
