@@ -51,26 +51,38 @@ function copy(state: InputState): InputState {
 
 /** `onNotShare`: "skip" for zip entries, "generic" for loose files, "detail" to report the parse error (typed text). */
 function addShare(s: InputState, text: string, source: string, onNotShare: "skip" | "generic" | "detail"): void {
+  let mnemonic: string;
   try {
-    const mnemonic = normalizeShareInput(text);
-    if (s.shares.some((x) => x.mnemonic === mnemonic)) return;
-    progress([...s.shares.map((x) => x.mnemonic), mnemonic]);
-    s.shares.push({ mnemonic, source });
+    mnemonic = normalizeShareInput(text);
   } catch (e) {
     if (!(e instanceof LuthenError)) throw e;
-    if (e.code === "INVALID_SHARE" && onNotShare !== "detail") {
-      // Inside a zip, files that are not shares are just bundle furniture.
-      if (onNotShare === "generic") s.problems.push({ name: source, message: "not a Luthen share or encrypted file" });
-      return;
-    }
-    s.problems.push({ name: source, message: e.message });
+    // Inside a zip, files that are not shares are just bundle furniture.
+    if (onNotShare === "generic") s.problems.push({ name: source, message: "not a Luthen share or encrypted file" });
+    else if (onNotShare === "detail") s.problems.push({ name: source, message: e.message });
+    return;
   }
+  if (s.shares.some((x) => x.mnemonic === mnemonic)) return;
+  try {
+    progress([...s.shares.map((x) => x.mnemonic), mnemonic]);
+  } catch (e) {
+    if (!(e instanceof LuthenError)) throw e;
+    s.problems.push({ name: source, message: e.message });
+    return;
+  }
+  s.shares.push({ mnemonic, source });
 }
 
 function classify(s: InputState, name: string, bytes: Uint8Array, depth: number, inZip: boolean): void {
   if (isZip(bytes)) {
     if (depth >= 2) return;
-    for (const entry of unzipFiles(bytes)) {
+    let entries: ReturnType<typeof unzipFiles>;
+    try {
+      entries = unzipFiles(bytes);
+    } catch {
+      s.problems.push({ name, message: "could not read zip" });
+      return;
+    }
+    for (const entry of entries) {
       const segments = entry.path.split("/");
       const base = segments[segments.length - 1]!;
       if (segments.includes("__MACOSX") || base.startsWith("._")) continue;

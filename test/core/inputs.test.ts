@@ -3,6 +3,7 @@ import { zipSync } from "fflate";
 import { bundleFiles, type BundleFiles } from "../../src/core/bundle";
 import { addFiles, addShareText, EMPTY_INPUTS, outputName } from "../../src/core/inputs";
 import { flat } from "../../src/core/scheme";
+import { normalizeShareInput } from "../../src/core/sharefile";
 import { seal } from "../../src/core/vault";
 import { zipFiles } from "../../src/core/zip";
 
@@ -113,4 +114,40 @@ test("outputName", () => {
   expect(outputName("secret.txt.age")).toBe("secret.txt");
   expect(outputName(".age")).toBe("luthen-output");
   expect(outputName("blob")).toBe("luthen-output");
+});
+
+/** Same words with the first two swapped: parses as a share but fails the checksum. */
+function badChecksum(text: string): string {
+  const m = normalizeShareInput(text).split(" ");
+  [m[0], m[1]] = [m[1]!, m[0]!];
+  return m.join(" ");
+}
+
+test("bad-checksum share loose reports the real reason", () => {
+  const bad = badChecksum(one.alice!["share.txt"] as string);
+  const s = addFiles(EMPTY_INPUTS, [{ name: "bad.txt", bytes: enc.encode(bad) }]);
+  expect(s.shares).toEqual([]);
+  expect(s.problems).toHaveLength(1);
+  expect(s.problems[0]!.message.toLowerCase()).toContain("checksum");
+});
+
+test("bad-checksum share inside a zip is a Problem, not silent", () => {
+  const bad = badChecksum(one.alice!["share.txt"] as string);
+  const zip = zipFiles({ "alice/share.txt": bad, "alice/RECOVERY.md": "x" }, created);
+  const s = addFiles(EMPTY_INPUTS, [{ name: "z.zip", bytes: zip }]);
+  expect(s.shares).toEqual([]);
+  expect(s.problems).toHaveLength(1);
+  expect(s.problems[0]!.name).toBe("z.zip/alice/share.txt");
+});
+
+test("truncated zip is one Problem and other files still load", () => {
+  const good = holderZip(one, "alice");
+  const truncated = holderZip(one, "bob").slice(0, 40);
+  const s = addFiles(EMPTY_INPUTS, [
+    { name: "bad.zip", bytes: truncated },
+    { name: "alice.zip", bytes: good },
+  ]);
+  expect(s.problems).toEqual([{ name: "bad.zip", message: "could not read zip" }]);
+  expect(s.shares).toHaveLength(1);
+  expect(s.ciphertext?.name).toBe("secret.txt.age");
 });
