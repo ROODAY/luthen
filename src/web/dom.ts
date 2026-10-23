@@ -33,3 +33,14 @@ export function errorText(e: unknown): string {
   if (e instanceof LuthenError) return e.message;
   return `Unexpected error: ${e instanceof Error ? e.message : String(e)}`;
 }
+
+/**
+ * Yields long enough for the browser to paint, so a "Working…" message shows before CPU-bound work
+ * starts. The timer fallback resolves even where animation frames are paused (background tabs).
+ */
+export function nextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => setTimeout(resolve, 0));
+    setTimeout(resolve, 100);
+  });
+}

@@ -120,7 +120,7 @@ legend { padding: 0 4px; font-weight: 600; }
 .field { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
 .field span { font-weight: 600; }
 
-input[type="text"], input[type="number"] {
+input[type="text"], input[type="number"], textarea {
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -142,7 +142,7 @@ button {
 }
 button.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-text); font-weight: 600; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
-button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .mode { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 8px; }
@@ -150,7 +150,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 
 .hint { color: var(--muted); font-size: 0.875rem; }
 .msg { color: var(--danger); }
-.status { font-weight: 600; }
+.status { font-weight: 600; white-space: pre-line; overflow-wrap: anywhere; }
 .status.error { color: var(--danger); }
 .warn {
   padding: 8px 12px;
@@ -169,6 +169,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .dropzone label { font-weight: 600; }
 .dropzone input { max-width: 100%; }
 .dropzone.dragging { border-color: var(--accent); background: var(--bg); }
+.dropzone.disabled { opacity: 0.5; }
 
 .groups, .holder-names { margin: 8px 0; padding-left: 0; list-style: none; }
 .groups li { margin: 6px 0; gap: 8px; }
@@ -185,3 +186,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   border-bottom: 1px solid var(--border);
 }
 .holders li div { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+
+/* Verify / Open */
+textarea { font-family: var(--mono); resize: vertical; }
+.loaded { font-weight: 600; overflow-wrap: anywhere; }
+.inputs, .problems { margin: 8px 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
+.progress { font-family: var(--mono); font-size: 0.875rem; overflow-wrap: anywhere; }
+.problems { color: var(--danger); }
+.problems.earlier { color: var(--muted); }
+details summary { cursor: pointer; }
+.actions { margin-top: 16px; }

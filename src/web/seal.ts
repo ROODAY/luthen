@@ -4,7 +4,7 @@ import { version } from "../../package.json";
 import { NAME_RE, bundleFiles, checkLabels, defaultLabels, summarizeScheme } from "../core/bundle";
 import { flat, totalShares, validateScheme, type Scheme } from "../core/scheme";
 import { seal } from "../core/vault";
-import { el, errorText, readFile } from "./dom";
+import { el, errorText, nextPaint, readFile } from "./dom";
 import { field, formatSize, message, numberInput, resultsView, say } from "./seal-view";
 
 const LARGE = 500 * 1024 * 1024;
@@ -15,9 +15,6 @@ const NAME_MSG = "Name may only use letters, digits, '.', '_' and '-'";
 type Parsed = { scheme: Scheme; flatThreshold?: number } | { error: string };
 
 const whole = (input: HTMLInputElement) => (/^\d+$/.test(input.value.trim()) ? Number(input.value) : NaN);
-
-/** Yields long enough for the browser to paint, so "Sealing…" shows before the CPU-bound work starts. */
-const nextPaint = () => new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 
 export function mountSeal(root: HTMLElement): void {
   let file: File | undefined;

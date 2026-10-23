@@ -1,5 +1,6 @@
 // Entry point for the web app: wires the Seal / Verify / Open tabs and shows the version.
 import { version } from "../../package.json";
+import { mountRecover } from "./recover";
 import { mountSeal } from "./seal";
 
 const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
@@ -26,3 +27,13 @@ for (const [i, tab] of tabs.entries()) {
 
 document.getElementById("version")!.textContent = `v${version}`;
 mountSeal(document.getElementById("seal")!);
+mountRecover(document.getElementById("verify")!, "verify");
+mountRecover(document.getElementById("open")!, "open");
+
+// A file dropped outside a drop zone would otherwise replace the page with the file.
+const outsideDropZone = (e: DragEvent) => !(e.target instanceof Element && e.target.closest(".dropzone"));
+document.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  if (e.dataTransfer && outsideDropZone(e)) e.dataTransfer.dropEffect = "none";
+});
+document.addEventListener("drop", (e) => e.preventDefault());
