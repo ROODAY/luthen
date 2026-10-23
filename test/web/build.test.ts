@@ -22,7 +22,11 @@ test("CSP hashes match the inline script and style", () => {
 });
 
 test("page references no external resources", () => {
+  // An empty data: favicon stops the browser requesting /favicon.ico; it is the only <link allowed.
+  const favicon = '<link rel="icon" href="data:,">';
+  expect(html.split(favicon)).toHaveLength(2);
   const shell = html
+    .replace(favicon, "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/g, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/g, "")
     .replace(/<pre[^>]*>[\s\S]*?<\/pre>/g, "");
@@ -53,4 +57,9 @@ test("inline script contains no </script or <!--", () => {
   const js = body('<script type="module">', "script").toLowerCase();
   expect(js).not.toContain("</script");
   expect(js).not.toContain("<!--");
+});
+
+test("inline script parses as JavaScript", () => {
+  const js = body('<script type="module">', "script");
+  expect(() => new Bun.Transpiler({ loader: "js" }).transformSync(js)).not.toThrow();
 });

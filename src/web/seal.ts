@@ -4,12 +4,10 @@ import { version } from "../../package.json";
 import { NAME_RE, bundleFiles, checkLabels, defaultLabels, summarizeScheme } from "../core/bundle";
 import { flat, totalShares, validateScheme, type Scheme } from "../core/scheme";
 import { seal } from "../core/vault";
-import { el, errorText, nextPaint, readFile } from "./dom";
+import { LARGE_FILE, el, errorText, largeFileNote, nextPaint, readFile } from "./dom";
 import { field, formatSize, message, numberInput, resultsView, say } from "./seal-view";
 
-const LARGE = 500 * 1024 * 1024;
 const MAX_GROUPS = 16;
-const RELEASES = "https://github.com/ROODAY/luthen/releases";
 const NAME_MSG = "Name may only use letters, digits, '.', '_' and '-'";
 
 type Parsed = { scheme: Scheme; flatThreshold?: number } | { error: string };
@@ -19,18 +17,13 @@ const whole = (input: HTMLInputElement) => (/^\d+$/.test(input.value.trim()) ? N
 export function mountSeal(root: HTMLElement): void {
   let file: File | undefined;
   let busy = false;
+  // Counts setting changes, so a seal finishing after an edit does not offer outdated downloads.
+  let edits = 0;
 
   // File
   const picker = el("input", { type: "file", id: "seal-file" });
   const fileInfo = el("p", { class: "hint" }, "No file chosen.");
-  const largeWarn = el(
-    "p",
-    { class: "warn", role: "note" },
-    "This file is larger than 500 MB. Your browser may be slow or crash while sealing it; the ",
-    el("a", { href: RELEASES }, "Luthen command-line tool"),
-    " handles large files better.",
-  );
-  largeWarn.hidden = true;
+  const largeWarn = largeFileNote("sealing");
   const drop = el(
     "div",
     { class: "dropzone" },
@@ -106,7 +99,7 @@ export function mountSeal(root: HTMLElement): void {
         remove.addEventListener("click", () => {
           groupRows.splice(i, 1);
           renderGroups();
-          update();
+          edited();
         });
         g.need.setAttribute("aria-label", `Group ${i + 1}: shares needed`);
         g.count.setAttribute("aria-label", `Group ${i + 1}: shares`);
@@ -154,7 +147,7 @@ export function mountSeal(root: HTMLElement): void {
     );
     holderInputs.forEach((input, i) => {
       input.value = typed[i] ?? "";
-      input.addEventListener("input", update);
+      input.addEventListener("input", edited);
     });
     holderList.replaceChildren(...holderInputs.map((input) => el("li", {}, input)));
   }
@@ -187,11 +180,18 @@ export function mountSeal(root: HTMLElement): void {
     return ready ? { ...parsed, name, labels: labels! } : undefined;
   }
 
+  /** A setting changed: earlier downloads no longer match the form, so drop them. */
+  function edited(): void {
+    edits++;
+    results.replaceChildren();
+    update();
+  }
+
   function choose(f: File): void {
     if (busy) return;
     file = f;
     fileInfo.textContent = `${f.name} · ${formatSize(f.size)}`;
-    largeWarn.hidden = f.size <= LARGE;
+    largeWarn.hidden = f.size <= LARGE_FILE;
     nameInput.value = f.name;
     results.replaceChildren();
     update();
@@ -202,6 +202,7 @@ export function mountSeal(root: HTMLElement): void {
     if (!form || !file) return;
     const { scheme, flatThreshold, name, labels } = form;
     const source = file;
+    const at = edits;
     busy = true;
     update();
     results.replaceChildren();
@@ -212,6 +213,10 @@ export function mountSeal(root: HTMLElement): void {
     try {
       plaintext = await readFile(source);
       const sealed = await seal(plaintext, scheme);
+      if (edits !== at) {
+        say(status, "The settings changed while sealing. Seal again.");
+        return;
+      }
       const created = new Date();
       const summary = summarizeScheme(scheme, flatThreshold);
       const files = bundleFiles({ sealed, labels, name, schemeSummary: summary, created, version });
@@ -248,16 +253,16 @@ export function mountSeal(root: HTMLElement): void {
     picker.value = "";
     choose(dropped[0]!);
   });
-  for (const input of [flatRadio, groupRadio]) input.addEventListener("change", update);
+  for (const input of [flatRadio, groupRadio]) input.addEventListener("change", edited);
   // Group rows come and go, so one delegated listener covers every number input.
   root.addEventListener("input", (e) => {
-    if (e.target instanceof HTMLInputElement && e.target.type === "number") update();
+    if (e.target instanceof HTMLInputElement && e.target.type === "number") edited();
   });
-  nameInput.addEventListener("input", update);
+  nameInput.addEventListener("input", edited);
   addGroup.addEventListener("click", () => {
     pushGroup(2, 3);
     renderGroups();
-    update();
+    edited();
   });
   sealBtn.addEventListener("click", doSeal);
 

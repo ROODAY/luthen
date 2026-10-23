@@ -1,9 +1,28 @@
 // Verify and Open panels: gather the encrypted file and shares from dropped files, zips and typed
 // words, show progress, then check the shares (Verify) or decrypt and download the contents (Open).
-import { EMPTY_INPUTS, addFiles, addShareText, outputName, type InputState, type Problem } from "../core/inputs";
+import {
+  EMPTY_INPUTS,
+  addFiles,
+  addProblems,
+  addShareText,
+  outputName,
+  type InputFile,
+  type InputState,
+  type Problem,
+} from "../core/inputs";
 import { decodeMnemonic } from "../core/slip39/mnemonic";
 import { open, progress, progressLine, verify } from "../core/vault";
-import { download, el, errorText, nextPaint, readFile } from "./dom";
+import {
+  LARGE_FILE,
+  download,
+  droppedFiles,
+  el,
+  errorText,
+  largeFileNote,
+  nextPaint,
+  pickedFiles,
+  type Picked,
+} from "./dom";
 import { message, say } from "./seal-view";
 
 const problemItem = (p: Problem) => el("li", {}, el("strong", {}, p.name), `: ${p.message}`);
@@ -17,12 +36,20 @@ export function mountRecover(root: HTMLElement, mode: "verify" | "open"): void {
 
   const id = `${mode}-files`;
   const picker = el("input", { type: "file", id, multiple: "" });
+  const folderPicker = el("input", { type: "file", webkitdirectory: "", multiple: "" });
+  folderPicker.hidden = true;
+  const folderBtn = el("button", { type: "button" }, "Choose folder");
   const drop = el(
     "div",
     { class: "dropzone" },
     el("label", { for: id }, "Encrypted file and shares"),
     picker,
-    el("p", { class: "hint" }, "or drop them here: the .age file, share.txt files, or the zips Luthen made."),
+    el("div", { class: "row" }, folderBtn, folderPicker),
+    el(
+      "p",
+      { class: "hint" },
+      "or drop them here: the .age file, share.txt files, holder folders, or the zips Luthen made.",
+    ),
   );
 
   const typed = el("textarea", {
@@ -43,6 +70,7 @@ export function mountRecover(root: HTMLElement, mode: "verify" | "open"): void {
   );
 
   const cipherInfo = el("p", { class: "loaded" });
+  const largeWarn = largeFileNote(mode === "verify" ? "verifying" : "opening");
   const shareList = el("ul", { class: "inputs" });
   const progressInfo = el("p", { class: "progress" });
   const newProblems = el("ul", { class: "problems", "aria-live": "polite" });
@@ -58,6 +86,7 @@ export function mountRecover(root: HTMLElement, mode: "verify" | "open"): void {
     typedBox,
     el("h2", {}, "Loaded"),
     cipherInfo,
+    largeWarn,
     shareList,
     progressInfo,
     newProblems,
@@ -68,6 +97,7 @@ export function mountRecover(root: HTMLElement, mode: "verify" | "open"): void {
 
   function render(): void {
     cipherInfo.textContent = state.ciphertext ? `Encrypted file: ${state.ciphertext.name}` : "No encrypted file yet";
+    largeWarn.hidden = !state.ciphertext || state.ciphertext.bytes.length <= LARGE_FILE;
     shareList.replaceChildren(
       ...state.shares.map((s) => {
         const share = decodeMnemonic(s.mnemonic);
@@ -82,7 +112,7 @@ export function mountRecover(root: HTMLElement, mode: "verify" | "open"): void {
     oldBox.hidden = latest === 0;
 
     drop.classList.toggle("disabled", busy);
-    for (const c of [picker, typed, addBtn, clearBtn]) c.disabled = busy;
+    for (const c of [picker, folderPicker, folderBtn, typed, addBtn, clearBtn]) c.disabled = busy;
     const ready = !!state.ciphertext && (mode === "verify" ? !!p : !!p?.complete);
     action.disabled = busy || !ready;
   }
@@ -100,13 +130,23 @@ export function mountRecover(root: HTMLElement, mode: "verify" | "open"): void {
     say(status, errorText(e));
   }
 
-  async function addDropped(files: FileList | null | undefined): Promise<void> {
-    if (busy || !files?.length) return;
+  /** Reads and adds files; one that cannot be read (e.g. a folder where folder drops are unsupported) becomes a Problem. */
+  async function addPicked(pending: Picked[] | Promise<Picked[]>): Promise<void> {
+    if (busy) return;
     busy = true;
     render();
     try {
-      const read = await Promise.all([...files].map(async (f) => ({ name: f.name, bytes: await readFile(f) })));
-      apply(addFiles(state, read));
+      const picked = await pending;
+      if (!picked.length) return;
+      const reads = await Promise.allSettled(picked.map((p) => p.read()));
+      const files: InputFile[] = [];
+      const unread: Problem[] = [];
+      reads.forEach((r, i) => {
+        const name = picked[i]!.name;
+        if (r.status === "fulfilled") files.push({ name, bytes: r.value });
+        else unread.push({ name, message: "could not read file" });
+      });
+      apply(addProblems(addFiles(state, files), unread));
     } catch (e) {
       fail(e);
     } finally {
@@ -159,10 +199,14 @@ export function mountRecover(root: HTMLElement, mode: "verify" | "open"): void {
     }
   }
 
-  picker.addEventListener("change", async () => {
-    await addDropped(picker.files);
-    picker.value = "";
-  });
+  for (const input of [picker, folderPicker]) {
+    input.addEventListener("change", async () => {
+      const picked = pickedFiles(input.files);
+      input.value = "";
+      await addPicked(picked);
+    });
+  }
+  folderBtn.addEventListener("click", () => folderPicker.click());
   drop.addEventListener("dragover", (e) => {
     e.preventDefault();
     if (!busy) drop.classList.add("dragging");
@@ -171,7 +215,13 @@ export function mountRecover(root: HTMLElement, mode: "verify" | "open"): void {
   drop.addEventListener("drop", (e) => {
     e.preventDefault();
     drop.classList.remove("dragging");
-    void addDropped(e.dataTransfer?.files);
+    if (busy) {
+      status.classList.remove("error");
+      say(status, "Busy — drop again when it finishes.");
+      return;
+    }
+    // Folder contents must be gathered now: the browser empties dataTransfer once this handler returns.
+    if (e.dataTransfer) void addPicked(droppedFiles(e.dataTransfer));
   });
   addBtn.addEventListener("click", addTyped);
   clearBtn.addEventListener("click", () => {
