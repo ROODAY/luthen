@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from "bun:test";
 import { zipSync } from "fflate";
 import { bundleFiles, type BundleFiles } from "../../src/core/bundle";
-import { addFiles, addShareText, EMPTY_INPUTS, outputName } from "../../src/core/inputs";
+import { addFiles, addProblems, addShareText, EMPTY_INPUTS, outputName } from "../../src/core/inputs";
 import { flat } from "../../src/core/scheme";
 import { normalizeShareInput } from "../../src/core/sharefile";
 import { seal } from "../../src/core/vault";
@@ -160,4 +160,47 @@ test("truncated zip is one Problem and other files still load", () => {
   expect(s.problems).toEqual([{ name: "bad.zip", message: "could not read zip" }]);
   expect(s.shares).toHaveLength(1);
   expect(s.ciphertext?.name).toBe("secret.txt.age");
+});
+
+/** Replaces the first share word with a word not on the SLIP-39 list. */
+function unknownWord(text: string): string {
+  const first = normalizeShareInput(text).split(" ")[0]!;
+  return text.replace(new RegExp(` 1 ${first} `), " 1 notaword ");
+}
+
+test("share.txt with an unknown word loose reports the real reason", () => {
+  const bad = unknownWord(one.alice!["share.txt"] as string);
+  const s = addFiles(EMPTY_INPUTS, [{ name: "share.txt", bytes: enc.encode(bad) }]);
+  expect(s.shares).toEqual([]);
+  expect(s.problems).toHaveLength(1);
+  expect(s.problems[0]!.name).toBe("share.txt");
+  expect(s.problems[0]!.message).toContain("unknown word");
+});
+
+test("share.txt with an unknown word inside a zip is a Problem, not silent", () => {
+  const bad = unknownWord(one.alice!["share.txt"] as string);
+  const zip = zipFiles({ "alice/share.txt": bad, "alice/RECOVERY.md": "x", "alice/notes.txt": "hello" }, created);
+  const s = addFiles(EMPTY_INPUTS, [{ name: "z.zip", bytes: zip }]);
+  expect(s.shares).toEqual([]);
+  expect(s.problems).toHaveLength(1);
+  expect(s.problems[0]!.name).toBe("z.zip/alice/share.txt");
+  expect(s.problems[0]!.message).toContain("unknown word");
+});
+
+test("typed text that is not a share reports the parse error", () => {
+  const s = addShareText(EMPTY_INPUTS, "hello zzz", "Typed share 1");
+  expect(s.shares).toEqual([]);
+  expect(s.problems).toEqual([{ name: "Typed share 1", message: 'unknown word "hello" at word 1' }]);
+});
+
+test("addProblems appends without touching the input state", () => {
+  const before = addFiles(EMPTY_INPUTS, [{ name: "notes.txt", bytes: enc.encode("hello") }]);
+  const s = addProblems(before, [{ name: "alice/share.txt", message: "could not read file" }]);
+  expect(s.problems).toEqual([
+    { name: "notes.txt", message: "not a Luthen share or encrypted file" },
+    { name: "alice/share.txt", message: "could not read file" },
+  ]);
+  expect(before.problems).toHaveLength(1);
+  expect(addProblems(EMPTY_INPUTS, []).problems).toEqual([]);
+  expect(EMPTY_INPUTS.problems).toEqual([]);
 });

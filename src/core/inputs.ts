@@ -30,6 +30,9 @@ const AGE_MAGIC = new TextEncoder().encode("age-encryption.org/v1\n");
 // Bundle files that are never shares; skipped silently whether loose or zipped (RECOVERY.md tells holders to drop in the whole folder).
 const BUNDLE_FURNITURE = new Set(["RECOVERY.md", "slip39-wordlist.txt"]);
 
+// Text that carries these is meant to be a share, so a parse failure is reported with its real reason.
+const SHARE_MARKERS = ["-----BEGIN SLIP-39 WORDS-----", "LUTHEN SHARE"];
+
 const basename = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
 function isAge(bytes: Uint8Array): boolean {
@@ -50,14 +53,18 @@ function copy(state: InputState): InputState {
   return { ciphertext: state.ciphertext, shares: [...state.shares], problems: [...state.problems] };
 }
 
-/** `onNotShare`: "skip" for zip entries, "generic" for loose files, "detail" to report the parse error (typed text). */
+/**
+ * `onNotShare`: "skip" for zip entries, "generic" for loose files, "detail" to report the parse error (typed text).
+ * Text that looks like a share file always gets "detail", wherever it came from.
+ */
 function addShare(s: InputState, text: string, source: string, onNotShare: "skip" | "generic" | "detail"): void {
   let mnemonic: string;
   try {
     mnemonic = normalizeShareInput(text);
   } catch (e) {
     if (!(e instanceof LuthenError)) throw e;
-    // Inside a zip, files that are not shares are just bundle furniture.
+    if (SHARE_MARKERS.some((m) => text.includes(m))) onNotShare = "detail";
+    // Otherwise, inside a zip, files that are not shares are just bundle furniture.
     if (onNotShare === "generic") s.problems.push({ name: source, message: "not a Luthen share or encrypted file" });
     else if (onNotShare === "detail") s.problems.push({ name: source, message: e.message });
     return;
@@ -122,4 +129,11 @@ export function outputName(ciphertextName: string): string {
   const base = basename(ciphertextName);
   if (!base.endsWith(".age")) return "luthen-output";
   return base.slice(0, -4) || "luthen-output";
+}
+
+/** Records problems found outside classification (e.g. a dropped file that could not be read). */
+export function addProblems(state: InputState, problems: Problem[]): InputState {
+  const next = copy(state);
+  next.problems.push(...problems);
+  return next;
 }
