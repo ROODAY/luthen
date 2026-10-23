@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { buildWeb } from "../../scripts/build-web";
+import { buildWeb, escapeInlineScript } from "../../scripts/build-web";
 
 const html = await buildWeb();
 const sha = (s: string) => `'sha256-${createHash("sha256").update(s).digest("base64")}'`;
@@ -38,4 +38,19 @@ test("page embeds Luthen's license and every bundled notice", () => {
 
 test("build is deterministic", async () => {
   expect(await buildWeb()).toBe(html);
+});
+
+test("escapeInlineScript neutralises </script and <!--", () => {
+  for (const [input, tag] of [["a</script>b", "script"], ["</SCRIPT", "SCRIPT"]] as const) {
+    const out = escapeInlineScript(input);
+    expect(out.toLowerCase()).not.toContain("</script");
+    expect(out).toContain(`<\\/${tag}`);
+  }
+  expect(escapeInlineScript("<!--")).toBe("<\\!--");
+});
+
+test("inline script contains no </script or <!--", () => {
+  const js = body('<script type="module">', "script").toLowerCase();
+  expect(js).not.toContain("</script");
+  expect(js).not.toContain("<!--");
 });

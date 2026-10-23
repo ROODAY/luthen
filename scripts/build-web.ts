@@ -16,6 +16,12 @@ const CHARSET = '<meta charset="utf-8">';
 const sha256 = (s: string) => `'sha256-${createHash("sha256").update(s).digest("base64")}'`;
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// Keeps the HTML parser from ending the inline script early (`</script`) or entering the
+// double-escaped script state (`<!--`). Both escapes are no-ops inside JS strings and templates.
+export function escapeInlineScript(js: string): string {
+  return js.replace(/<\/(script)/gi, (_, tag: string) => `<\\/${tag}`).replace(/<!--/g, () => "<\\!--");
+}
+
 // Replaces the single occurrence of `marker`; a function replacement keeps `$` in bundled code literal.
 function replaceOnce(html: string, marker: string, replacement: string): string {
   const at = html.indexOf(marker);
@@ -32,7 +38,7 @@ export async function buildWeb(): Promise<string> {
   });
   if (!result.success) throw new AggregateError(result.logs, "web bundle failed");
   if (result.outputs.length !== 1) throw new Error(`expected one bundle output, got ${result.outputs.length}`);
-  const script = (await result.outputs[0]!.text()).replace(/<\/script/gi, "<\/script");
+  const script = escapeInlineScript(await result.outputs[0]!.text());
   const style = readFileSync(join(web, "style.css"), "utf8");
   if (/<\/style/i.test(style)) throw new Error("style.css must not contain </style");
 
