@@ -18,7 +18,7 @@ export function renderNotices(opts: { header: string; includeLicense: boolean })
 
   const sections = [...seen].sort().map((name) => {
     const dir = join(root, "node_modules", name);
-    const file = readdirSync(dir).find((f) => /^(licen[cs]e|copying)/i.test(f));
+    const file = readdirSync(dir).sort().find((f) => /^(licen[cs]e|copying)/i.test(f));
     if (!file) throw new Error(`no license file in ${name}`);
     const { version, license } = pkg(name);
     return `${name} ${version} (${license})\n${"-".repeat(40)}\n\n${readFileSync(join(dir, file), "utf8").trim()}\n`;
