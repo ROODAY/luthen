@@ -1,5 +1,6 @@
 // Entry point for the web app: wires the Seal / Verify / Open tabs and shows the version.
 import { version } from "../../package.json";
+import { mountSeal } from "./seal";
 
 const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
 
@@ -24,3 +25,4 @@ for (const [i, tab] of tabs.entries()) {
 }
 
 document.getElementById("version")!.textContent = `v${version}`;
+mountSeal(document.getElementById("seal")!);
