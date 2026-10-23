@@ -35,6 +35,11 @@ const SHARE_MARKERS = ["-----BEGIN SLIP-39 WORDS-----", "LUTHEN SHARE"];
 
 const basename = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
+// Files the OS leaves in folders (Finder and Explorer metadata, dotfiles); in a dropped folder they are never worth a Problem.
+const OS_FILES = new Set(["Thumbs.db", "desktop.ini"]);
+const isOsFile = (path: string): boolean =>
+  path.split("/").includes("__MACOSX") || basename(path).startsWith(".") || OS_FILES.has(basename(path));
+
 function isAge(bytes: Uint8Array): boolean {
   return bytes.length >= AGE_MAGIC.length && AGE_MAGIC.every((b, i) => bytes[i] === b);
 }
@@ -109,7 +114,7 @@ function classify(s: InputState, name: string, bytes: Uint8Array, depth: number,
     return;
   }
   if (BUNDLE_FURNITURE.has(basename(name))) return;
-  addShare(s, decodeText(bytes), name, inZip ? "skip" : "generic");
+  addShare(s, decodeText(bytes), name, inZip || isOsFile(name) ? "skip" : "generic");
 }
 
 export function addFiles(state: InputState, files: InputFile[]): InputState {

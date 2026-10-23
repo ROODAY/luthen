@@ -250,6 +250,11 @@ export function mountSeal(root: HTMLElement): void {
       fileInfo.textContent = "Drop exactly one file.";
       return;
     }
+    // A dropped folder arrives as a File that fails only when sealing reads it.
+    if (e.dataTransfer?.items[0]?.webkitGetAsEntry?.()?.isDirectory) {
+      fileInfo.textContent = "That is a folder. Zip it first, then drop the zip.";
+      return;
+    }
     picker.value = "";
     choose(dropped[0]!);
   });

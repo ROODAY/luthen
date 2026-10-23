@@ -113,6 +113,20 @@ test("loose holder folder files: bundle furniture is skipped silently", () => {
   expect(s.problems).toEqual([]);
 });
 
+test("loose OS junk from a dropped folder is skipped silently, but a real share under such a name still loads", () => {
+  const share = enc.encode(one.alice!["share.txt"] as string);
+  const s = addFiles(EMPTY_INPUTS, [
+    { name: "alice/.DS_Store", bytes: new Uint8Array([0, 0, 0, 1, 66, 117, 100, 49]) },
+    { name: "alice/._share.txt", bytes: new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0]) },
+    { name: "alice/Thumbs.db", bytes: new Uint8Array([208, 207, 17, 224]) },
+    { name: "alice/desktop.ini", bytes: enc.encode("[.ShellClassInfo]\r\n") },
+    { name: "__MACOSX/alice/notes.txt", bytes: enc.encode("hello") },
+    { name: "alice/.share.txt", bytes: share },
+  ]);
+  expect(s.problems).toEqual([]);
+  expect(s.shares).toHaveLength(1);
+});
+
 test("typed share", () => {
   const mnemonic = addFiles(EMPTY_INPUTS, [{ name: "a.zip", bytes: holderZip(one, "alice") }]).shares[0]!.mnemonic;
   const s = addShareText(EMPTY_INPUTS, mnemonic, "typed");
