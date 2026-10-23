@@ -33,6 +33,10 @@ luthen open ${f} -s alice/share.txt -s bob/share.txt … -o <output>
 
 Each holder's file is called \`share.txt\`, so keep them in separate folders. Pass as many share.txt files as you have, each with -s; you'll be prompted for any missing ones.
 
+## Recovery with the Luthen website
+
+Open https://rooday.com/luthen in a browser. For the safest option, download \`luthen.html\` from https://github.com/ROODAY/luthen/releases and open it on an offline machine; it works without a network connection. Choose Open, then drop in this folder's files (or its zip) and enough other holders' folders, zips, or share.txt files. You can also type a share's words.
+
 ## Recovery without Luthen
 
 1. Install the SLIP-39 tool (tested with shamir-mnemonic 0.3.0):
