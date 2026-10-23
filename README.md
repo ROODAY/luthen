@@ -15,6 +15,15 @@ bun install
 bun src/cli/main.ts --help
 ```
 
+### Run with Node or Bun
+
+If you already have Node 22 or newer, or Bun, download `luthen.mjs` (about 150 KB instead of the ~100 MB binaries, which embed a JavaScript runtime) plus `SHA256SUMS` from [Releases](https://github.com/ROODAY/luthen/releases), verify it like a binary (`gh attestation verify luthen.mjs --repo ROODAY/luthen`), and run:
+
+```
+node luthen.mjs --help
+bun luthen.mjs --help
+```
+
 ## Verify a release
 
 Check the checksum, then the build provenance attestation:
@@ -24,7 +33,7 @@ sha256sum -c SHA256SUMS --ignore-missing
 gh attestation verify luthen-linux-x64 --repo ROODAY/luthen
 ```
 
-`luthen.html`, the [web app](#web-app), is listed in `SHA256SUMS` and attested too; see that section.
+`luthen.mjs` and `luthen.html` (the [web app](#web-app)) are listed in `SHA256SUMS` and attested too.
 
 On macOS, check the checksum with `shasum -a 256 -c SHA256SUMS --ignore-missing`. On Windows (PowerShell), run `Get-FileHash <file> -Algorithm SHA256` and compare the hash with the matching line in `SHA256SUMS`.
 
