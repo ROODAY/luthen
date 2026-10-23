@@ -2,7 +2,7 @@ import { parseArgs } from "node:util";
 import { basename } from "node:path";
 import { LuthenError } from "../core/errors";
 import { normalizeShareInput } from "../core/sharefile";
-import { open, progress, verify, type Progress } from "../core/vault";
+import { open, progress, progressLine, verify, type Progress } from "../core/vault";
 import { unlinkSync } from "node:fs";
 import { pathExists, prompt, readInput, writeExclusive } from "./io";
 import { UsageError } from "./seal";
@@ -22,18 +22,6 @@ export const VERIFY_USAGE = `Usage:
 Checks shares (and, once enough are given, that they unlock the file). Writes nothing.
 Pass each share.txt with -s/--share (repeatable). With no share files, asks for one share.
 `;
-
-// Shares record thresholds but not how many shares exist, so this can say "need 2" but not "of 3".
-function progressLine(p: Progress): string {
-  const count = (have: number, need: number) => `have ${have}, need ${need}${have >= need ? " ✓" : ""}`;
-  if (p.groups.length === 1 && p.groupThreshold === 1) {
-    const g = p.groups[0]!;
-    return `shares: ${count(g.have, g.threshold)}`;
-  }
-  const done = p.groups.filter((g) => g.have >= g.threshold).length;
-  const parts = p.groups.map((g) => `group ${g.index + 1} shares: ${count(g.have, g.threshold)}`);
-  return `${parts.join(" · ")} · complete groups: ${count(done, p.groupThreshold)}`;
-}
 
 function rejectStdinPaths(paths: string[]): void {
   if (paths.includes("-")) {

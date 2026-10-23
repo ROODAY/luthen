@@ -4,7 +4,7 @@ import { LuthenError } from "../../src/core/errors";
 import { describePosition, flat, totalShares, validateScheme, type Scheme } from "../../src/core/scheme";
 import { combineMnemonics } from "../../src/core/slip39/index";
 import { decodeMnemonic, encodeMnemonic } from "../../src/core/slip39/mnemonic";
-import { open, progress, rotationSubsets, seal, verify, type RotationGroup } from "../../src/core/vault";
+import { open, progress, progressLine, rotationSubsets, seal, verify, type RotationGroup } from "../../src/core/vault";
 
 function flatGroups(s: Scheme): RotationGroup[] {
   return s.groups.map((g, index) => ({
@@ -228,4 +228,11 @@ test("verify: a forged 1-of-1 group share makes subsets disagree -> INVALID_SHAR
   expect(err).toBeInstanceOf(LuthenError);
   expect((err as LuthenError).code).toBe("INVALID_SHARE");
   expect((err as LuthenError).message).toMatch(/disagree/);
+});
+
+test("progressLine", () => {
+  const p = { identifier: 1, groupThreshold: 1, groups: [{ index: 0, threshold: 3, have: 2 }], complete: false };
+  expect(progressLine(p)).toBe("shares: have 2, need 3");
+  p.groups[0]!.have = 3;
+  expect(progressLine(p)).toBe("shares: have 3, need 3 ✓");
 });

@@ -1,8 +1,7 @@
 import { parseArgs } from "node:util";
 import { basename } from "node:path";
+import { NAME_RE, bundleFiles, checkLabels, defaultLabels, summarizeScheme } from "../core/bundle";
 import { flat, totalShares, validateScheme, type Scheme } from "../core/scheme";
-import { renderRecovery, renderWordlist } from "../core/recovery";
-import { renderShareFile } from "../core/sharefile";
 import { seal } from "../core/vault";
 import pkg from "../../package.json";
 import { pathExists, prompt, readInput, shred, writeBundleDir } from "./io";
@@ -28,17 +27,9 @@ Examples:
   cat key.pem | luthen seal - --name key --shares 3 --threshold 2
 `;
 
-const NAME_RE = /^[A-Za-z0-9._-]+$/;
-
 function int(value: string, flag: string): number {
   if (!/^\d+$/.test(value)) throw new UsageError(`${flag} must be a whole number, got "${value}"`);
   return Number(value);
-}
-
-function summarize(scheme: Scheme, threshold: number | undefined): string {
-  if (threshold !== undefined) return `any ${threshold} of ${totalShares(scheme)} shares`;
-  const parts = scheme.groups.map((g, i) => `group ${i + 1} needs ${g.threshold} of ${g.count}`);
-  return `${scheme.groupThreshold} of ${scheme.groups.length} groups; ${parts.join(", ")}`;
 }
 
 export async function sealCommand(argv: string[]): Promise<number> {
@@ -108,17 +99,10 @@ export async function sealCommand(argv: string[]): Promise<number> {
   let labels: string[];
   if (values.names !== undefined) {
     labels = values.names.split(",");
-    if (labels.length !== total) throw new UsageError(`--names needs exactly ${total} names, got ${labels.length}`);
-    if (!labels.every((n) => NAME_RE.test(n))) {
-      throw new UsageError("--names may only use letters, digits, '.', '_' and '-'");
-    }
-    if (new Set(labels).size !== total) throw new UsageError("--names must be unique");
-  } else if (flatMode) {
-    labels = Array.from({ length: total }, (_, i) => `share-${i + 1}`);
+    const problem = checkLabels(labels, total);
+    if (problem) throw new UsageError(`--names ${problem}`);
   } else {
-    labels = scheme.groups.flatMap((g, gi) =>
-      Array.from({ length: g.count }, (_, mi) => `group-${gi + 1}-share-${mi + 1}`),
-    );
+    labels = defaultLabels(scheme, flatMode);
   }
 
   const name = values.name ?? (fromStdin ? "vault" : basename(input));
@@ -138,27 +122,8 @@ export async function sealCommand(argv: string[]): Promise<number> {
   const plaintext = await readInput(input);
   const sealed = await seal(plaintext, scheme);
 
-  const schemeSummary = summarize(scheme, flatThreshold);
-  const created = new Date();
-  const recovery = renderRecovery({ fileName, schemeSummary, identifier: sealed.identifier, version: pkg.version });
-  const wordlist = renderWordlist();
-  const files: Record<string, Record<string, Uint8Array | string>> = {};
-  sealed.shares.forEach((s, i) => {
-    const label = labels[i]!;
-    files[label] = {
-      "share.txt": renderShareFile({
-        label,
-        position: s.position,
-        identifier: sealed.identifier,
-        fileName,
-        created,
-        mnemonic: s.mnemonic,
-      }),
-      "RECOVERY.md": recovery,
-      [fileName]: sealed.ciphertext,
-      "slip39-wordlist.txt": wordlist,
-    };
-  });
+  const schemeSummary = summarizeScheme(scheme, flatThreshold);
+  const files = bundleFiles({ sealed, labels, name, schemeSummary, created: new Date(), version: pkg.version });
   await writeBundleDir(outDir, files);
 
   console.log(`Sealed ${fileName} into ${outDir}`);

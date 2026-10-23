@@ -170,6 +170,18 @@ export function progress(mnemonics: string[]): Progress {
   return analyze(mnemonics).progress;
 }
 
+// Shares record thresholds but not how many shares exist, so this can say "need 2" but not "of 3".
+export function progressLine(p: Progress): string {
+  const count = (have: number, need: number) => `have ${have}, need ${need}${have >= need ? " ✓" : ""}`;
+  if (p.groups.length === 1 && p.groupThreshold === 1) {
+    const g = p.groups[0]!;
+    return `shares: ${count(g.have, g.threshold)}`;
+  }
+  const done = p.groups.filter((g) => g.have >= g.threshold).length;
+  const parts = p.groups.map((g) => `group ${g.index + 1} shares: ${count(g.have, g.threshold)}`);
+  return `${parts.join(" · ")} · complete groups: ${count(done, p.groupThreshold)}`;
+}
+
 /**
  * Report progress; once the thresholds are met, prove that every share in a complete group
  * takes part in a subset recovering the same secret, then decrypt once in memory and discard.
