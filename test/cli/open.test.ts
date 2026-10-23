@@ -96,6 +96,24 @@ test("open -o - writes a large binary file byte-for-byte to a slow reader", asyn
   expect(Buffer.compare(Buffer.concat(chunks), input)).toBe(0);
 }, T);
 
+test("open -o - into a reader that closes early exits 0 quietly, like `| head`", async () => {
+  writeFileSync(join(dir, "big.bin"), new Uint8Array(4 * 1024 * 1024));
+  expect((await run(["seal", "big.bin", "--shares", "2", "--threshold", "2", "--out", "o"])).code).toBe(0);
+  const s = (n: number) => join(dir, "o", `share-${n}`, "share.txt");
+  const p = Bun.spawn([...CLI, "open", join(dir, "o", "share-1", "big.bin.age"), "-s", s(1), "-s", s(2), "-o", "-"], {
+    cwd: dir,
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const reader = p.stdout.getReader();
+  await reader.read();
+  await reader.cancel();
+  const [err, code] = await Promise.all([new Response(p.stderr).text(), p.exited]);
+  expect(err).toBe("");
+  expect(code).toBe(0);
+}, T);
+
 test("open -o existing → exit 1, file unchanged", async () => {
   writeFileSync(join(dir, "out.txt"), "keep me");
   const r = await run(["open", age(), "-s", share(1), "-s", share(2), "-s", share(3), "-o", "out.txt"]);

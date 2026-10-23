@@ -124,7 +124,10 @@ export async function openCommand(argv: string[]): Promise<number> {
   try {
     if (outPath === "-") {
       // The callback fires once the stream is done with the buffer, so zeroing in `finally` is safe on Node and Bun.
-      await new Promise<void>((ok, fail) => process.stdout.write(plaintext, (e) => (e ? fail(e) : ok())));
+      // EPIPE means the reader stopped early (`| head`): not an error, as before.
+      await new Promise<void>((ok, fail) =>
+        process.stdout.write(plaintext, (e) => (e && (e as NodeJS.ErrnoException).code !== "EPIPE" ? fail(e) : ok())),
+      );
     } else {
       try {
         await writeExclusive(outPath, plaintext);
