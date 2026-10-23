@@ -28,10 +28,10 @@ Set ID: ${info.identifier}. Only shares showing this same Set ID work together.
 ## Recovery with Luthen
 
 \`\`\`
-luthen open ${f} alice/share.txt bob/share.txt … -o <output>
+luthen open ${f} -s alice/share.txt -s bob/share.txt … -o <output>
 \`\`\`
 
-Each holder's file is called \`share.txt\`, so keep them in separate folders. Pass as many share.txt files as you have; you'll be prompted for any missing ones.
+Each holder's file is called \`share.txt\`, so keep them in separate folders. Pass as many share.txt files as you have, each with -s; you'll be prompted for any missing ones.
 
 ## Recovery without Luthen
 

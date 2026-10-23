@@ -39,13 +39,13 @@ luthen seal secrets.txt --shares 3 --threshold 2 --out bundle
 Recover it (omit share files to be prompted for the words):
 
 ```
-luthen open bundle/share-1/secrets.txt.age bundle/share-1/share.txt bundle/share-2/share.txt -o secrets.txt
+luthen open bundle/share-1/secrets.txt.age -s bundle/share-1/share.txt -s bundle/share-2/share.txt -o secrets.txt
 ```
 
 Check that shares can decrypt a bundle without writing the plaintext:
 
 ```
-luthen verify bundle/share-1/secrets.txt.age bundle/share-1/share.txt bundle/share-2/share.txt
+luthen verify bundle/share-1/secrets.txt.age -s bundle/share-1/share.txt -s bundle/share-2/share.txt
 ```
 
 Recovery never requires Luthen: see `RECOVERY.md` in any bundle.

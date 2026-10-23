@@ -8,19 +8,19 @@ import { pathExists, prompt, readInput, writeExclusive } from "./io";
 import { UsageError } from "./seal";
 
 export const OPEN_USAGE = `Usage:
-  luthen open <file.age> [share.txt ...] [-o <path>|-]
+  luthen open <file.age> [-s share.txt ...] [-o <path>|-]
 
-Pass share.txt files as arguments. Any other shares are asked for at the prompt: type one share per
-line (words or numbers).
+Pass each share.txt with -s/--share (repeatable). Any other shares are asked for at the prompt: type
+one share per line (words or numbers).
 -o - writes the plaintext to stdout; -o <path> refuses to overwrite an existing file.
 Without -o, asks for an output path (needs a terminal).
 `;
 
 export const VERIFY_USAGE = `Usage:
-  luthen verify <file.age> [share.txt ...]
+  luthen verify <file.age> [-s share.txt ...]
 
 Checks shares (and, once enough are given, that they unlock the file). Writes nothing.
-With no share files, asks for one share.
+Pass each share.txt with -s/--share (repeatable). With no share files, asks for one share.
 `;
 
 // Shares record thresholds but not how many shares exist, so this can say "need 2" but not "of 3".
@@ -41,19 +41,27 @@ function rejectStdinPaths(paths: string[]): void {
   }
 }
 
-function parse(argv: string[], withOutput: boolean): { output?: string; positionals: string[] } {
+function parse(argv: string[], cmd: "open" | "verify"): { ageFile: string; shareFiles: string[]; output?: string } {
+  let r;
   try {
-    const r = parseArgs({
+    r = parseArgs({
       args: argv,
       allowPositionals: true,
       strict: true,
-      options: { output: { type: "string", short: "o" } },
+      options: { output: { type: "string", short: "o" }, share: { type: "string", short: "s", multiple: true } },
     });
-    if (!withOutput && r.values.output !== undefined) throw new Error("verify takes no -o option");
-    return { output: r.values.output, positionals: r.positionals };
   } catch (e) {
     throw new UsageError((e as Error).message);
   }
+  if (cmd === "verify" && r.values.output !== undefined) throw new UsageError("verify takes no -o option");
+  if (r.positionals.length < 1) throw new UsageError(`${cmd} needs the encrypted file (.age)`);
+  if (r.positionals.length > 1) {
+    throw new UsageError(`${cmd} takes one encrypted file; pass share files with -s/--share (got ${r.positionals.slice(1).join(", ")})`);
+  }
+  const ageFile = r.positionals[0]!;
+  const shareFiles = r.values.share ?? [];
+  rejectStdinPaths([ageFile, ...shareFiles]);
+  return { ageFile, shareFiles, output: r.values.output };
 }
 
 async function loadShareFiles(paths: string[]): Promise<string[]> {
@@ -104,10 +112,7 @@ async function collect(
 }
 
 export async function openCommand(argv: string[]): Promise<number> {
-  const { output, positionals } = parse(argv, true);
-  if (positionals.length < 1) throw new UsageError("open needs the encrypted file (.age)");
-  const [ageFile, ...shareFiles] = positionals as [string, ...string[]];
-  rejectStdinPaths(positionals);
+  const { ageFile, shareFiles, output } = parse(argv, "open");
   let outPath = output;
   if (outPath === undefined && !process.stdin.isTTY) {
     throw new UsageError("no output chosen: pass -o <path> (or -o - for stdout) when stdin is not a terminal");
@@ -156,10 +161,7 @@ export async function openCommand(argv: string[]): Promise<number> {
 }
 
 export async function verifyCommand(argv: string[]): Promise<number> {
-  const { positionals } = parse(argv, false);
-  if (positionals.length < 1) throw new UsageError("verify needs the encrypted file (.age)");
-  const [ageFile, ...shareFiles] = positionals as [string, ...string[]];
-  rejectStdinPaths(positionals);
+  const { ageFile, shareFiles } = parse(argv, "verify");
 
   const ciphertext = await readInput(ageFile);
   const mnemonics = await loadShareFiles(shareFiles);

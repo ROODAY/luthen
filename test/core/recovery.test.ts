@@ -14,7 +14,7 @@ test("recovery card contains both recovery paths, spec links, and the scheme lin
     "numbered order",
     "top to bottom",
     "https://github.com/FiloSottile/age",
-    "alice/share.txt bob/share.txt",
+    "-s alice/share.txt -s bob/share.txt",
     "prompted for any missing ones",
     "age -d",
     "vault.age",
