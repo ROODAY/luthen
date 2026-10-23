@@ -18,4 +18,6 @@ for target in bun-linux-x64 bun-linux-arm64 bun-darwin-x64 bun-darwin-arm64 bun-
   bun build src/cli/main.ts --compile --minify --target="$target" --outfile "$outdir/luthen-$name$ext"
 done
 
-(cd "$outdir" && LC_ALL=C sha256sum luthen-* | sed 's/ \*/  /' | LC_ALL=C sort -k2 > SHA256SUMS)
+bun scripts/build-web.ts "$outdir/luthen.html"
+
+(cd "$outdir" && LC_ALL=C sha256sum luthen* | sed 's/ \*/  /' | LC_ALL=C sort -k2 > SHA256SUMS)
