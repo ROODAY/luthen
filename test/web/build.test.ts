@@ -22,11 +22,14 @@ test("CSP hashes match the inline script and style", () => {
 });
 
 test("page references no external resources", () => {
-  // An empty data: favicon stops the browser requesting /favicon.ico; it is the only <link allowed.
-  const favicon = '<link rel="icon" href="data:,">';
-  expect(html.split(favicon)).toHaveLength(2);
+  // The favicon is inlined as a data: URI, so the page never requests /favicon.ico.
+  const favicon = /<link rel="icon" type="image\/png" href="data:image\/png;base64,[A-Za-z0-9+/=]+">/;
+  const m = html.match(favicon);
+  expect(m).not.toBeNull();
+  const bytes = Buffer.from(m![0].match(/base64,([A-Za-z0-9+/=]+)"/)![1]!, "base64");
+  expect([...bytes.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   const shell = html
-    .replace(favicon, "")
+    .replace(m![0], "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/g, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/g, "")
     .replace(/<pre[^>]*>[\s\S]*?<\/pre>/g, "");

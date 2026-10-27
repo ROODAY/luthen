@@ -10,6 +10,7 @@ const web = join(import.meta.dir, "..", "src", "web");
 
 const LINK = '<link rel="stylesheet" href="./style.css">';
 const SCRIPT = '<script type="module" src="./main.ts"></script>';
+const FAVICON = '<link rel="icon" type="image/png" href="./favicon.png">';
 const MARKER = "<!-- LICENSES -->";
 const CHARSET = '<meta charset="utf-8">';
 
@@ -41,6 +42,7 @@ export async function buildWeb(): Promise<string> {
   const script = escapeInlineScript(await result.outputs[0]!.text());
   const style = readFileSync(join(web, "style.css"), "utf8");
   if (/<\/style/i.test(style)) throw new Error("style.css must not contain </style");
+  const favicon = readFileSync(join(web, "favicon.png")).toString("base64");
 
   const notices = renderNotices({ header: "This page bundles the third-party material below.", includeLicense: true });
   const csp = [
@@ -55,6 +57,7 @@ export async function buildWeb(): Promise<string> {
 
   let html = readFileSync(join(web, "index.html"), "utf8");
   html = replaceOnce(html, CHARSET, `${CHARSET}\n<meta http-equiv="Content-Security-Policy" content="${csp}">`);
+  html = replaceOnce(html, FAVICON, `<link rel="icon" type="image/png" href="data:image/png;base64,${favicon}">`);
   html = replaceOnce(html, LINK, `<style>${style}</style>`);
   html = replaceOnce(html, SCRIPT, `<script type="module">${script}</script>`);
   html = replaceOnce(html, MARKER, `<pre>${escapeHtml(notices)}</pre>`);

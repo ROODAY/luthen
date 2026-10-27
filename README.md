@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Luthen logo" width="128">
+</p>
+
 # Luthen
 
 Luthen is a command-line tool that encrypts a file with age and splits the encryption key into SLIP-39 mnemonic shares, so that a chosen number of shares is needed to recover the file. It runs entirely offline. A [web app](#web-app) does the same in the browser; its `seal` zips have the same contents as the CLI's `seal` folders.
